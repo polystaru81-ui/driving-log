@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行車紀錄表</title>
+<style>
+/* ── 完全使用系統字型，不載入任何外部資源 ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy: #1a3a5c; --navy-dark: #0f2540; --navy-light: #2563a8;
+  --green: #059669; --red: #dc2626;
+  --gcal: #1a73e8; --gcal-light: #e8f0fe;
+  --sheets: #0f9d58;
+  --gray-50: #f8fafc; --gray-100: #f1f5f9; --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1; --gray-400: #94a3b8; --gray-500: #64748b;
+  --gray-600: #475569; --gray-700: #334155; --gray-800: #1e293b;
+  --white: #fff;
+  /* 全部使用系統字型，零外部請求 */
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei',
+          'PingFang TC', 'Noto Sans CJK TC', sans-serif;
+  --mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --radius: 10px; --radius-lg: 14px;
+}
+html { font-size: 15px; }
+body { font-family: var(--font); background: var(--gray-100); color: var(--gray-800); min-height: 100vh; }
+input, select, button { font-family: var(--font); }
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 3px; }
+
+/* Header */
+#app-header {
+  background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, var(--navy-light) 100%);
+  padding: 12px 16px; position: sticky; top: 0; z-index: 50;
+  box-shadow: 0 2px 8px rgba(15,37,64,.5);
+}
+.header-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.header-left { display: flex; flex-direction: column; gap: 1px; }
+.header-label { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.45); }
+.header-name { font-size: 18px; font-weight: 700; color: #fff; font-family: var(--mono); letter-spacing: .02em; }
+.header-name span { color: #7dd3fc; }
+.header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.conn-pill { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,.1); padding: 4px 10px; border-radius: 20px; }
+.conn-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; flex-shrink: 0; transition: background .3s; }
+.conn-dot.ok { background: #22c55e; }
+.conn-text { font-size: 11px; color: rgba(255,255,255,.7); font-weight: 600; white-space: nowrap; }
+.vtabs { display: flex; gap: 5px; flex-wrap: wrap; }
+.vtab { padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; font-family: var(--mono); background: rgba(255,255,255,.1); color: rgba(255,255,255,.6); transition: background .12s, color .12s; }
+.vtab:hover { background: rgba(255,255,255,.2); color: #fff; }
+.vtab.active { background: #7dd3fc; color: var(--navy-dark); }
+.vtab.all.active { background: #86efac; color: #14532d; }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 16px 14px 40px; }
+
+/* Setup banner */
+.setup-banner {
+  background: #fffbeb; border: 2px solid #fbbf24; border-radius: var(--radius-lg);
+  padding: 14px 18px; margin-bottom: 16px;
+}
+.setup-banner h3 { font-size: 14px; font-weight: 700; color: #92400e; margin-bottom: 6px; }
+.setup-steps { font-size: 12px; color: #78350f; line-height: 1.9; margin-bottom: 10px; }
+.setup-steps b { color: #92400e; }
+.setup-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.setup-row input { flex: 1; min-width: 180px; padding: 8px 11px; border: 1.5px solid #fbbf24; border-radius: var(--radius); font-size: 13px; font-family: var(--mono); }
+.setup-row input:focus { outline: none; border-color: #f59e0b; }
+
+/* Stats */
+.stats-bar { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+.stat-card { background: var(--white); border-radius: var(--radius-lg); padding: 12px 14px; box-shadow: var(--shadow-sm); border: 1px solid var(--gray-200); }
+.stat-icon { font-size: 18px; margin-bottom: 4px; }
+.stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--gray-400); margin-bottom: 2px; }
+.stat-val { font-family: var(--mono); font-size: 17px; font-weight: 600; color: var(--navy-dark); }
+
+/* GCal strip */
+.gcal-strip {
+  background: var(--gcal-light); border: 1px solid #bfdbfe;
+  border-radius: var(--radius-lg); padding: 10px 16px; margin-bottom: 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+}
+.gcal-strip-info { font-size: 13px; color: var(--gcal); font-weight: 600; }
+.gcal-strip-sub { font-size: 11px; color: var(--gray-500); font-weight: 400; margin-top: 1px; }
+.gcal-strip-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Form */
+.form-panel { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--gray-200); margin-bottom: 16px; overflow: hidden; }
+.panel-hdr { background: var(--navy); padding: 10px 18px; font-size: 14px; font-weight: 700; color: #fff; }
+.form-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 13px; }
+.frow { display: grid; gap: 10px; }
+.frow.c2 { grid-template-columns: 1fr 1fr; }
+.frow.c3 { grid-template-columns: 1fr 1fr 1fr; }
+.fgroup { display: flex; flex-direction: column; gap: 4px; }
+.flabel { font-size: 10px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .06em; }
+.flabel .hint { font-size: 10px; color: var(--gray-400); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.inp { width: 100%; padding: 9px 11px; border: 1.5px solid var(--gray-200); border-radius: var(--radius); font-size: 14px; color: var(--gray-800); background: var(--white); transition: border-color .12s; appearance: none; -webkit-appearance: none; }
+.inp:focus { outline: none; border-color: #2e7cf6; box-shadow: 0 0 0 3px rgba(46,124,246,.12); }
+.inp::placeholder { color: var(--gray-300); }
+.inp.mono { font-family: var(--mono); }
+select.inp { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; cursor: pointer; }
+.pfx { position: relative; }
+.pfx .px { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--gray-400); font-weight: 600; pointer-events: none; }
+.pfx .inp { padding-left: 26px; }
+.sfx { position: relative; }
+.sfx .sx { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--gray-400); font-weight: 600; pointer-events: none; }
+.sfx .inp { padding-right: 26px; }
+.km-row { display: flex; align-items: flex-end; gap: 8px; }
+.km-row .kf { flex: 1; }
+.km-arrow { color: var(--gray-300); font-size: 18px; padding-bottom: 10px; flex-shrink: 0; }
+.km-total { min-width: 72px; text-align: center; flex-shrink: 0; }
+.km-label { font-size: 10px; color: var(--gray-400); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+.km-val { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--navy-dark); }
+.km-val.zero { color: var(--gray-300); }
+.km-val .u { font-size: 11px; font-weight: 400; margin-left: 1px; }
+.cb-row { display: flex; gap: 18px; flex-wrap: wrap; }
+.cb-item { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; }
+.cb-box { width: 19px; height: 19px; border-radius: 5px; border: 2px solid var(--gray-200); background: var(--white); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .12s; }
+.cb-box.on { border-color: var(--navy); background: var(--navy); }
+.cb-box.gcal.on { border-color: var(--gcal); background: var(--gcal); }
+.cb-box.on::after { content: '✓'; color: #fff; font-size: 11px; font-weight: 700; }
+.cb-label { font-size: 14px; color: var(--gray-600); font-weight: 500; }
+.divider { height: 1px; background: var(--gray-100); margin: 1px 0; }
+.gcal-opt { background: var(--gcal-light); border: 1px solid #bfdbfe; border-radius: var(--radius); padding: 11px 14px; }
+.gcal-opt .cb-label { color: var(--gcal); font-weight: 700; }
+
+/* Buttons */
+.btn { padding: 9px 18px; border: none; border-radius: var(--radius); font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .12s; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.btn:active { opacity: .8; transform: scale(.98); }
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.btn-navy { background: var(--navy); color: #fff; }
+.btn-navy:hover:not(:disabled) { background: var(--navy-dark); }
+.btn-green { background: var(--green); color: #fff; }
+.btn-green:hover { opacity: .88; }
+.btn-ghost { background: var(--white); color: var(--gray-500); border: 1.5px solid var(--gray-200); }
+.btn-ghost:hover { background: var(--gray-50); }
+.btn-gcal { background: var(--gcal); color: #fff; }
+.btn-gcal:hover { opacity: .88; }
+.btn-gcal-o { background: var(--gcal-light); color: var(--gcal); border: 1.5px solid #bfdbfe; }
+.btn-gcal-o:hover { background: #d2e3fc; }
+.btn-sheets { background: var(--sheets); color: #fff; }
+.submit-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* Sync status tag */
+.sync-tag { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 4px; }
+.sync-ok { background: #dcfce7; color: #166534; }
+.sync-no { background: var(--gray-100); color: var(--gray-400); font-size: 11px; border: 1px solid var(--gray-200); border-radius: 5px; padding: 3px 7px; cursor: pointer; }
+.sync-no:hover { background: var(--gcal-light); color: var(--gcal); border-color: #bfdbfe; }
+
+/* Records panel */
+.rec-panel { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--gray-200); overflow: hidden; }
+.rec-hdr { background: var(--navy); padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.rec-title { color: #fff; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.rec-count { font-size: 12px; color: #93c5fd; font-weight: 400; margin-left: 2px; }
+.mgr-badge { background: #86efac; color: #14532d; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.rec-hdr-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; }
+thead tr { background: #e8f0fe; }
+th { padding: 9px 11px; text-align: left; font-size: 10px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; border-bottom: 2px solid var(--navy-light); }
+tbody tr { border-top: 1px solid var(--gray-100); }
+tbody tr:hover { background: var(--gray-50); }
+td { padding: 9px 11px; color: var(--gray-700); white-space: nowrap; vertical-align: middle; }
+td.route { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+tfoot tr { background: #eff6ff; border-top: 2px solid #bfdbfe; }
+tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family: var(--mono); font-size: 13px; }
+.tag-lunch { background: #fef3c7; color: #92400e; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.tag-dinner { background: #ffedd5; color: #9a3412; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.yi-badge { display: inline-block; background: #f59e0b; color: #fff; font-size: 10px; font-weight: 800; padding: 1px 4px; border-radius: 3px; margin-right: 3px; vertical-align: middle; }
+.del-btn { background: #fff1f2; border: 1.5px solid #fca5a5; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 700; padding: 6px 12px; color: #dc2626; white-space: nowrap; min-width: 56px; }
+.del-btn:hover { background: #dc2626; color: #fff; border-color: #dc2626; }
+.no-data { padding: 44px 20px; text-align: center; color: var(--gray-400); }
+
+/* Status bar (replaces loading overlay) */
+#status-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+  background: var(--navy-dark); color: #fff;
+  padding: 10px 20px; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transform: translateY(100%); transition: transform .2s ease;
+}
+#status-bar.show { transform: translateY(0); }
+#status-bar .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Toast */
+#toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(0); background: var(--navy-dark); color: #fff; padding: 9px 20px; border-radius: 100px; font-size: 13px; font-weight: 600; z-index: 300; opacity: 0; transition: opacity .18s; pointer-events: none; white-space: nowrap; }
+#toast.show { opacity: 1; }
+
+/* Sync Modal */
+.modal-bg { position: fixed; inset: 0; background: rgba(15,37,64,.5); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal-box { background: var(--white); border-radius: var(--radius-lg); max-width: 520px; width: 100%; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+.modal-hdr { background: var(--gcal); padding: 12px 18px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.modal-hdr h3 { color: #fff; font-size: 14px; font-weight: 700; }
+.modal-close { background: none; border: none; color: rgba(255,255,255,.7); font-size: 20px; cursor: pointer; padding: 0 6px; line-height: 1; }
+.modal-close:hover { color: #fff; }
+.modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
+.modal-tip { font-size: 12px; color: var(--gray-500); background: var(--gcal-light); border-left: 3px solid var(--gcal); border-radius: 0 var(--radius) var(--radius) 0; padding: 9px 12px; margin-bottom: 12px; line-height: 1.6; }
+.sync-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius); margin-bottom: 7px; cursor: pointer; }
+.sync-item:hover { border-color: #bfdbfe; background: #f8fbff; }
+.sync-item input[type=checkbox] { width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0; accent-color: var(--gcal); cursor: pointer; }
+.sync-item-info { flex: 1; pointer-events: none; }
+.sync-item-title { font-size: 13px; font-weight: 700; color: var(--gray-800); margin-bottom: 2px; }
+.sync-item-sub { font-size: 11px; color: var(--gray-400); font-family: var(--mono); line-height: 1.5; }
+.modal-ftr { padding: 12px 18px; border-top: 1px solid var(--gray-100); display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0; }
+
+.hidden { display: none !important; }
+
+@media (max-width: 680px) {
+  .stats-bar { grid-template-columns: 1fr 1fr; }
+  .frow.c3 { grid-template-columns: 1fr 1fr; }
+  .frow.c2 { grid-template-columns: 1fr; }
+  .gcal-strip { flex-direction: column; align-items: flex-start; }
+  .header-name { font-size: 16px; }
+}
+@media (max-width: 420px) {
+  .stats-bar { grid-template-columns: 1fr; }
+  .vtab { font-size: 11px; padding: 4px 9px; }
+}
+</style>
+</head>
+<body>
+
+<header id="app-header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="header-label">車輛行車管理系統</div>
+      <div class="header-name" id="header-plate">CBX-8595 <span>行車紀錄表</span></div>
+    </div>
+    <div class="header-right">
+      <div class="conn-pill">
+        <div class="conn-dot" id="conn-dot"></div>
+        <span class="conn-text" id="conn-text">未連線</span>
+      </div>
+      <div class="vtabs" id="vtabs">
+        <button class="vtab active" data-v="CBX-8595">CBX-8595</button>
+        <button class="vtab" data-v="BQD-8595">BQD-8595</button>
+        <button class="vtab" data-v="BFW-8595">BFW-8595</button>
+        <button class="vtab" data-v="司機車">司機車</button>
+        <button class="vtab all" data-v="__ALL__">全部</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Setup -->
+  <div class="setup-banner" id="setup-banner">
+    <h3>⚙️ 首次設定：連接 Google Sheets（選填）</h3>
+    <div class="setup-steps">
+      <b>步驟 1：</b>開啟 Google Sheets → 擴充功能 → Apps Script → 貼入 Code.gs → 儲存<br>
+      <b>步驟 2：</b>部署 → 新增部署作業 → 網頁應用程式 → 存取權「所有人」<br>
+      <b>步驟 3：</b>複製「網頁應用程式 URL」貼到下方 → 儲存<br>
+      <span style="color:#92400e;font-size:11px">※ 未設定時資料仍會儲存在本機，可隨時設定</span>
+    </div>
+    <div class="setup-row">
+      <input type="text" id="gas-inp" placeholder="https://script.google.com/macros/s/..." autocomplete="off">
+      <button class="btn btn-sheets" onclick="saveGasUrl()">✓ 儲存連線</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('setup-banner').classList.add('hidden')">略過</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-card"><div class="stat-icon">🛣️</div><div class="stat-label">累積里程</div><div class="stat-val" id="s-km">0 km</div></div>
+    <div class="stat-card"><div class="stat-icon">⛽</div><div class="stat-label">加油量</div><div class="stat-val" id="s-fuel">0.00 L</div></div>
+    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-label">油費合計</div><div class="stat-val" id="s-fuelcost">NT$0</div></div>
+    <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-label">已同步行事曆</div><div class="stat-val" id="s-synced" style="color:var(--gcal)">0 筆</div></div>
+  </div>
+
+  <!-- GCal strip -->
+  <div class="gcal-strip">
+    <div>
+      <div class="gcal-strip-info">📅 Google 行事曆整合（考勤紀錄）</div>
+      <div class="gcal-strip-sub">行程含「易」自動同步 ・ 接車→抵達時間自動成為事件時段</div>
+    </div>
+    <div class="gcal-strip-btns">
+      <button class="btn btn-gcal-o" onclick="openSyncModal(false)" style="font-size:13px;padding:7px 13px;">📋 同步未同步紀錄</button>
+      <button class="btn btn-gcal" onclick="openSyncModal(true)" style="font-size:13px;padding:7px 13px;">📅 全部同步</button>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <div class="form-panel" id="form-panel">
+    <div class="panel-hdr">✏️ 填寫新紀錄</div>
+    <div class="form-body">
+
+      <div class="frow c3">
+        <div class="fgroup">
+          <label class="flabel">日期</label>
+          <input type="date" id="f-date" class="inp mono">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">星期</label>
+          <input type="text" id="f-weekday" class="inp" readonly style="background:var(--gray-50);color:var(--gray-500)">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">出車類別</label>
+          <select id="f-vehicle" class="inp">
+            <option>CBX-8595</option><option>BQD-8595</option>
+            <option>BFW-8595</option><option>司機車</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="fgroup">
+        <label class="flabel">行程 <span class="hint">（自動記憶歷史路線・含「易」自動同步行事曆）</span></label>
+        <input type="text" id="f-route" class="inp" list="route-list" placeholder="例：公司→中山路→易增→公司" autocomplete="off">
+        <datalist id="route-list"></datalist>
+      </div>
+
+      <div class="fgroup" id="km-section">
+        <label class="flabel">里程數 <span class="hint">（結束里程自動帶入下次起始）</span></label>
+        <div class="km-row">
+          <div class="kf">
+            <div style="font-size:10px;color:var(--gray-400);font-weight:700;text-transform:uppercase;margin-bottom:3px">起始里程</div>
+            <input type="number" id="f-km-s" class="inp mono" placeholder="0">
+          </div>
+          <div class="km-arrow">→</div>
+          <div class="kf">
+            <div style="font-size:10px;color:var(--gray-400);font-weight:700;text-transform:uppercase;margin-bottom:3px">結束里程</div>
+            <input type="number" id="f-km-e" class="inp mono" placeholder="0">
+          </div>
+          <div class="km-total">
+            <div class="km-label">總里程</div>
+            <div class="km-val zero" id="km-disp">0<span class="u">km</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="frow c2">
+        <div class="fgroup">
+          <label class="flabel">接車時間 <span class="hint">（格式 HH:MM，例：08:30）</span></label>
+          <input type="text" id="f-tp" class="inp mono" placeholder="08:00"
+                 maxlength="5" inputmode="numeric"
+                 oninput="autoColon(this)" autocomplete="off">
+        </div>
+        <div class="fgroup">
+          <label class="flabel">抵達時間 <span class="hint">（格式 HH:MM，例：17:30）</span></label>
+          <input type="text" id="f-ta" class="inp mono" placeholder="17:00"
+                 maxlength="5" inputmode="numeric"
+                 oninput="autoColon(this)" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="frow c2">
+        <div class="fgroup">
+          <label class="flabel">加油數量</label>
+          <div class="sfx">
+            <input type="number" id="f-fl" class="inp mono" placeholder="0">
+            <span class="sx">L</span>
+          </div>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">加油金額</label>
+          <div class="pfx">
+            <span class="px">NT$</span>
+            <input type="number" id="f-fc" class="inp mono" placeholder="0">
+          </div>
+        </div>
+      </div>
+
+      <div class="frow c2">
+        <div class="fgroup">
+          <label class="flabel">其他費用類型</label>
+          <select id="f-ot" class="inp">
+            <option value="">（無）</option>
+            <option>停車費用</option><option>洗車費用</option>
+            <option>汽車美容費用</option><option>其他費用</option>
+          </select>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">費用金額</label>
+          <div class="pfx">
+            <span class="px">NT$</span>
+            <input type="number" id="f-oc" class="inp mono" placeholder="0">
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="frow c2">
+        <div class="fgroup">
+          <label class="flabel">用餐狀況</label>
+          <div class="cb-row" style="margin-top:4px">
+            <div class="cb-item" onclick="tog('nl')">
+              <div class="cb-box" id="cb-nl"></div>
+              <span class="cb-label">未供午餐</span>
+            </div>
+            <div class="cb-item" onclick="tog('nd')">
+              <div class="cb-box" id="cb-nd"></div>
+              <span class="cb-label">未供晚餐</span>
+            </div>
+          </div>
+        </div>
+        <div class="fgroup">
+          <label class="flabel">備註</label>
+          <input type="text" id="f-notes" class="inp" placeholder="補充說明">
+        </div>
+      </div>
+
+      <div class="gcal-opt">
+        <div class="cb-row">
+          <div class="cb-item" onclick="tog('gc')">
+            <div class="cb-box gcal" id="cb-gc"></div>
+            <span class="cb-label">📅 新增後立即同步到 Google 行事曆</span>
+          </div>
+          <span style="font-size:11px;color:var(--gray-400)">（另開分頁確認後儲存）</span>
+        </div>
+      </div>
+
+      <div class="submit-row">
+        <button class="btn btn-navy" id="add-btn" onclick="addRecord()">✚ 新增紀錄</button>
+        <button class="btn btn-ghost" onclick="clearForm()">清除</button>
+        <span id="form-msg" style="font-size:13px;color:var(--red)"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Records -->
+  <div class="rec-panel">
+    <div class="rec-hdr">
+      <div class="rec-title">
+        📋 歷史紀錄
+        <span class="rec-count" id="rec-count">（0 筆）</span>
+        <span class="mgr-badge hidden" id="mgr-badge">管理者全覽</span>
+      </div>
+      <div class="rec-hdr-btns">
+        <button class="btn btn-ghost" onclick="loadFromGas()" style="font-size:12px;padding:6px 11px;">🔄 從雲端重新整理</button>
+        <button class="btn btn-ghost" onclick="openReportModal()" style="font-size:12px;padding:6px 11px;background:#eff6ff;color:#1a3a5c;border-color:#bfdbfe;">📊 產生月報表</button>
+        <button class="btn btn-gcal-o" onclick="openSyncModal(false)" style="font-size:12px;padding:6px 11px;">📅 批量同步</button>
+        <button class="btn btn-green" onclick="exportCSV()" style="font-size:12px;padding:6px 11px;">📥 匯出 CSV</button>
+        <button class="btn btn-ghost" onclick="clearAllConfirm()" id="clear-btn" style="font-size:12px;padding:6px 11px;">🗑 清除全部</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>日期</th><th>星期</th><th>出車類別</th><th>行程</th>
+          <th>起始</th><th>結束</th><th>總里程</th>
+          <th>接車</th><th>抵達</th>
+          <th>加油L</th><th>油費</th><th>其他費用</th><th>金額</th>
+          <th>午/晚</th><th>備註</th><th>行事曆</th><th>刪除</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+        <tfoot id="tfoot"></tfoot>
+      </table>
+      <div class="no-data" id="no-data">
+        <div style="font-size:36px;margin-bottom:8px">🚗</div>
+        <div style="font-size:14px">尚無紀錄，請填寫上方表單新增</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal-bg hidden" id="del-modal" onclick="if(event.target===this)closeDelModal()">
+  <div class="modal-box" style="max-width:340px">
+    <div class="modal-hdr" style="background:#dc2626">
+      <h3>🗑 確認刪除</h3>
+      <button class="modal-close" onclick="closeDelModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px 18px">
+      <div style="font-size:14px;color:var(--gray-700);margin-bottom:8px;font-weight:600" id="del-info"></div>
+      <div style="font-size:13px;color:var(--gray-400);line-height:1.6">此操作將同時從 Google Sheets 刪除，無法復原。</div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" onclick="closeDelModal()">取消</button>
+      <button class="btn" style="background:#dc2626;color:#fff" id="del-confirm-btn" onclick="confirmDelete()">確認刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report Modal -->
+<div class="modal-bg hidden" id="report-modal" onclick="if(event.target===this)closeReportModal()">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-hdr" style="background:#1a3a5c">
+      <h3>📊 產生月報表</h3>
+      <button class="modal-close" onclick="closeReportModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-tip" style="border-color:#1a3a5c;background:#eff6ff;color:#1e3a5f">
+        在 Google Sheets 自動建立月報表工作表，包含：<br>
+        <b>① 各車牌費用彙總</b>（里程、油費、其他費用）<br>
+        <b>② 熱門行程 TOP 10</b>（出現次數、涉及車牌）<br>
+        <b>③ 逐日行車明細</b>（完整紀錄）
+      </div>
+      <div class="fgroup" style="margin-bottom:14px">
+        <label class="flabel">選擇月份</label>
+        <input type="month" id="rpt-month" class="inp mono">
+      </div>
+      <div style="font-size:12px;color:var(--gray-400);line-height:1.6">
+        ※ 若該月報表已存在，將自動覆蓋更新<br>
+        ※ 每月 1 日可設定自動產生上月報表（需在 Apps Script 執行 <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px">setupMonthlyTrigger()</code>）
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" onclick="closeReportModal()">取消</button>
+      <button class="btn btn-navy" onclick="genReport()">📊 產生報表</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sync Modal -->
+<div class="modal-bg hidden" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h3>📅 同步到 Google 行事曆（考勤紀錄）</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-tip">
+        勾選紀錄 → 點「開始同步」→ 系統依序開啟行事曆新增頁面，確認後點「儲存」即完成。<br>
+        <b style="color:var(--gcal)">事件時間 = 接車時間 → 抵達時間（無填時間則建立全天事件）</b>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" onclick="selAll(true)" style="font-size:12px;padding:5px 10px;">全選</button>
+        <button class="btn btn-ghost" onclick="selAll(false)" style="font-size:12px;padding:5px 10px;">全不選</button>
+        <button class="btn btn-gcal-o" onclick="selUnsync()" style="font-size:12px;padding:5px 10px;">僅未同步</button>
+      </div>
+      <div id="sync-list"></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+      <button class="btn btn-gcal" onclick="startSync()">📅 開始同步</button>
+    </div>
+  </div>
+</div>
+
+<!-- Status bar (no heavy CSS, no overlay) -->
+<div id="status-bar"><div class="spin"></div><span id="status-text">處理中...</span></div>
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   Constants & State
+   ══════════════════════════════════════════ */
+const WD = ['週日','週一','週二','週三','週四','週五','週六'];
+const LS = { GAS:'drv_gas', REC:'drv_rec', ROUTES:'drv_routes', KM:'drv_km', VEH:'drv_veh' };
+
+// ══ Apps Script 網址（已寫死，所有裝置自動連線）══
+const HARDCODED_GAS = 'https://script.google.com/macros/s/AKfycbz8MrvBn5vdHemqYvWiIyQOCYb0jkn-yCOQO8aJoMugmRoKkqooKFL3qa0-pZPzv82w/exec';
+
+let GAS_URL = HARDCODED_GAS;  // 永遠使用固定網址
+// 同時更新 localStorage，讓舊版設定也一致
+lsS_early(LS.GAS, GAS_URL);
+
+function lsS_early(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} }
+let curVeh  = lsG(LS.VEH) || 'CBX-8595';
+let records = lsG(LS.REC) || [];   // 本地快取
+let routes  = lsG(LS.ROUTES) || [];
+let lastKm  = lsG(LS.KM) || {};
+let cbState = { nl:false, nd:false, gc:false };
+// busy flag 已移除（fetch 原生支援並行）
+
+/* localStorage */
+function lsG(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch{ return null; } }
+function lsS(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} }
+
+/* ══════════════════════════════════════════
+   API：透過 Netlify Function 代理呼叫 GAS
+   瀏覽器 → /.netlify/functions/gas-proxy → GAS
+   徹底解決 Google 驗證攔截問題
+   ══════════════════════════════════════════ */
+async function api(params, timeout) {
+  timeout = timeout || 15000;
+  const url = '/.netlify/functions/gas-proxy?' + new URLSearchParams(params).toString();
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error('伺服器錯誤 ' + res.status);
+    return await res.json();
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('連線逾時，請稍後再試');
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/* ══════════════════════════════════════════
+   Init（不自動拉取雲端，手動點「重新整理」）
+   ══════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+  // 網址已寫死，直接隱藏設定區塊並標示連線成功
+  document.getElementById('setup-banner').classList.add('hidden');
+  setConn(true);
+  setToday();
+  setVeh(curVeh);
+  refreshDL();
+  render();
+
+  document.getElementById('f-date').addEventListener('change', syncDay);
+  document.getElementById('f-vehicle').addEventListener('change', onVehChange);
+  document.getElementById('f-km-s').addEventListener('input', calcKm);
+  document.getElementById('f-km-e').addEventListener('input', calcKm);
+  document.getElementById('vtabs').addEventListener('click', e => {
+    const b = e.target.closest('.vtab'); if (b) setVeh(b.dataset.v);
+  });
+});
+
+/* ══════════════════════════════════════════
+   GAS URL save
+   ══════════════════════════════════════════ */
+function saveGasUrl(){
+  const v = document.getElementById('gas-inp').value.trim();
+  if (!v.startsWith('https://script.google.com')){
+    toast('⚠ 請貼上正確的 Apps Script 網址'); return;
+  }
+  GAS_URL = v; lsS(LS.GAS, v);
+  document.getElementById('setup-banner').classList.add('hidden');
+  setConn(true);
+  toast('✓ 連線設定已儲存');
+}
+
+function setConn(ok){
+  document.getElementById('conn-dot').className = 'conn-dot'+(ok?' ok':'');
+  document.getElementById('conn-text').textContent = ok ? 'Google Sheets 已連線' : '本機模式';
+}
+
+/* 手動從雲端拉取 */
+async function loadFromGas(){
+  if (!GAS_URL){ toast('尚未設定 Apps Script 網址'); return; }
+  // (busy check removed)
+  showStatus('從 Google Sheets 載入中...');
+  try {
+    const data = await api({ action:'getAll' });
+    if (Array.isArray(data)){
+      records = data; lsS(LS.REC, records);
+      setConn(true); render();
+      toast(`✓ 已載入 ${records.length} 筆紀錄`);
+    } else throw new Error(data.error || '格式錯誤');
+  } catch(e){
+    setConn(false); toast('⚠ 載入失敗：' + e.message);
+  } finally { hideStatus(); }
+}
+
+/* ══════════════════════════════════════════
+   Date
+   ══════════════════════════════════════════ */
+function todayStr(){ return new Date().toISOString().split('T')[0]; }
+function setToday(){ document.getElementById('f-date').value = todayStr(); syncDay(); }
+function syncDay(){
+  const v = document.getElementById('f-date').value;
+  if (!v) return;
+  document.getElementById('f-weekday').value = WD[new Date(v+'T00:00:00').getDay()];
+}
+function wdOf(d){ return WD[new Date(String(d)+'T00:00:00').getDay()]; }
+function fmtD(d){ return String(d).replace(/-/g,'/'); }
+
+/* ══════════════════════════════════════════
+   Vehicle
+   ══════════════════════════════════════════ */
+function setVeh(v){
+  curVeh = v; lsS(LS.VEH, v);
+  document.querySelectorAll('.vtab').forEach(b => b.classList.toggle('active', b.dataset.v===v));
+  const isAll = v==='__ALL__';
+  document.getElementById('header-plate').innerHTML = isAll
+    ? `全部車輛 <span>管理者全覽</span>` : `${v} <span>行車紀錄表</span>`;
+  document.getElementById('form-panel').classList.toggle('hidden', isAll);
+  document.getElementById('clear-btn').classList.toggle('hidden', isAll);
+  document.getElementById('mgr-badge').classList.toggle('hidden', !isAll);
+  if (!isAll){
+    document.getElementById('f-vehicle').value = v;
+    showKm(v!=='司機車');
+    if (v!=='司機車'){
+      document.getElementById('f-km-s').value = lastKm[v] ?? '';
+      document.getElementById('f-km-e').value = ''; calcKm();
+    }
+  }
+  render();
+}
+
+function onVehChange(){
+  const v = document.getElementById('f-vehicle').value;
+  showKm(v!=='司機車');
+  if (v!=='司機車'){
+    document.getElementById('f-km-s').value = lastKm[v] ?? '';
+    document.getElementById('f-km-e').value = ''; calcKm();
+  }
+}
+function showKm(show){ document.getElementById('km-section').classList.toggle('hidden', !show); }
+
+/* Km */
+function calcKm(){
+  const s = +document.getElementById('f-km-s').value;
+  const e = +document.getElementById('f-km-e').value;
+  const d = (e>0 && e>s) ? e-s : 0;
+  const el = document.getElementById('km-disp');
+  el.textContent = d+' km'; el.className = 'km-val'+(d>0?'':' zero');
+}
+
+/* Checkbox */
+function tog(id){
+  cbState[id] = !cbState[id];
+  const el = document.getElementById('cb-'+id);
+  const base = 'cb-box' + (id==='gc'?' gcal':'');
+  el.className = base + (cbState[id]?' on':'');
+}
+
+/* Routes datalist */
+function refreshDL(){
+  document.getElementById('route-list').innerHTML =
+    routes.map(r=>`<option value="${esc(r)}">`).join('');
+}
+function addRoute(r){
+  if (r && !routes.includes(r)){ routes.push(r); lsS(LS.ROUTES,routes); refreshDL(); }
+}
+
+/* 自動補冒號：輸入 4 碼數字後自動插入 : 成 HH:MM */
+function autoColon(el){
+  let v = el.value.replace(/[^0-9]/g,'');
+  if (v.length >= 3) v = v.slice(0,2) + ':' + v.slice(2,4);
+  el.value = v;
+}
+
+/* 驗證並標準化時間：支援 830 / 0830 / 8:30 / 08:30 → 統一輸出 HH:MM */
+function parseTime(v){
+  v = (v||'').trim();
+  if (!v) return '';
+  const digits = v.replace(/[^0-9]/g,'');
+  if (digits.length === 3)       v = '0'+digits[0]+':'+digits.slice(1);
+  else if (digits.length === 4)  v = digits.slice(0,2)+':'+digits.slice(2);
+  if (/^\d{2}:\d{2}$/.test(v)){
+    const [h,m] = v.split(':').map(Number);
+    if (h>=0&&h<=23&&m>=0&&m<=59) return v;
+  }
+  return '';
+}
+
+/* ══════════════════════════════════════════
+   Add Record（本地優先，背景同步到 GAS）
+   ══════════════════════════════════════════ */
+async function addRecord(){
+  const v    = document.getElementById('f-vehicle').value;
+  const date = document.getElementById('f-date').value;
+  if (!date){ showMsg('請填入日期'); return; }
+
+  const drv = v==='司機車';
+  const kS  = drv ? '' : document.getElementById('f-km-s').value;
+  const kE  = drv ? '' : document.getElementById('f-km-e').value;
+  const tot = (!drv && kS!=='' && kE!=='') ? Math.max(0,+kE-+kS) : '';
+  const route = document.getElementById('f-route').value.trim();
+
+  const rec = {
+    id: String(Date.now()),
+    date, weekday: wdOf(date),
+    vehicle:v, route, kmStart:kS, kmEnd:kE, totalKm:tot,
+    timePick:   parseTime(document.getElementById('f-tp').value),
+    timeArrive: parseTime(document.getElementById('f-ta').value),
+    fuelL:      document.getElementById('f-fl').value,
+    fuelCost:   document.getElementById('f-fc').value,
+    otherType:  document.getElementById('f-ot').value,
+    otherCost:  document.getElementById('f-oc').value,
+    noLunch: cbState.nl, noDinner: cbState.nd,
+    notes: document.getElementById('f-notes').value.trim(),
+    gcalSynced: false,
+  };
+
+  addRoute(route);
+  if (!drv && kE!=='') { lastKm[v]=+kE; lsS(LS.KM,lastKm); }
+
+  /* 1. 立即存本地 → UI 立即更新 */
+  records.push(rec); lsS(LS.REC,records);
+  clearForm(); render();
+
+  /* 2. 背景靜默同步到 GAS（不阻塞 UI）*/
+  if (GAS_URL){
+    api({ action:'save', data: encodeURIComponent(JSON.stringify(rec)) })
+      .then(() => setConn(true))
+      .catch(() => setConn(false));
+  }
+
+  /* 3. Google 行事曆 */
+  const hasYi = route.includes('易');
+  if (hasYi || cbState.gc){
+    openGCal(buildGCalURL(rec));
+    rec.gcalSynced = true; lsS(LS.REC,records); render();
+    if (GAS_URL) api({ action:'markSynced', id:rec.id }).catch(()=>{});
+    toast(hasYi ? '📅 行程含「易」，已同步行事曆' : '✓ 已新增並開啟行事曆');
+  } else {
+    toast('✓ 紀錄已新增');
+  }
+}
+
+/* Clear form */
+function clearForm(){
+  setToday();
+  const v = curVeh==='__ALL__'?'CBX-8595':curVeh;
+  document.getElementById('f-vehicle').value = v;
+  showKm(v!=='司機車');
+  document.getElementById('f-km-s').value = v!=='司機車' ? (lastKm[v]??'') : '';
+  ['f-km-e','f-route','f-tp','f-ta','f-fl','f-fc','f-oc','f-notes']
+    .forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-ot').value='';
+  cbState={nl:false,nd:false,gc:false};
+  ['nl','nd','gc'].forEach(id=>{
+    const el=document.getElementById('cb-'+id);
+    el.className='cb-box'+(id==='gc'?' gcal':'');
+  });
+  document.getElementById('form-msg').textContent='';
+  calcKm();
+}
+
+/* Delete - 用自訂 Modal 取代 confirm()（手機相容）*/
+let pendingDeleteId = null;
+
+function deleteRecord(id){
+  const r = records.find(x=>String(x.id)===String(id));
+  if (!r) return;
+  pendingDeleteId = id;
+  const tp = r.timePick  ? ` ・ 接車 ${r.timePick}`  : '';
+  const ta = r.timeArrive? ` → 抵達 ${r.timeArrive}` : '';
+  const km = r.totalKm!==''&&r.totalKm!==undefined ? ` ・ ${r.totalKm} km` : '';
+  document.getElementById('del-info').innerHTML =
+    `<div style="font-size:15px;margin-bottom:6px">📅 ${fmtD(r.date)} ${wdOf(r.date)}</div>` +
+    `<div style="font-size:13px;color:var(--gray-600)">` +
+    `<span style="background:#e8f0fe;color:var(--navy);padding:1px 7px;border-radius:4px;font-weight:700;font-family:var(--mono)">${esc(r.vehicle)}</span>` +
+    (r.route ? ` &nbsp;${esc(r.route.slice(0,30))}` : '') +
+    `</div>` +
+    `<div style="font-size:12px;color:var(--gray-400);margin-top:5px;font-family:var(--mono)">${tp}${ta}${km}</div>`;
+  document.getElementById('del-modal').classList.remove('hidden');
+}
+
+function closeDelModal(){
+  document.getElementById('del-modal').classList.add('hidden');
+  pendingDeleteId = null;
+}
+
+async function confirmDelete(){
+  const id = pendingDeleteId;
+  closeDelModal();
+  if (!id) return;
+
+  if (id === '__ALL__'){
+    // 清除本車牌全部
+    const vr = records.filter(r=>r.vehicle===curVeh);
+    records = records.filter(r=>r.vehicle!==curVeh);
+    lsS(LS.REC,records); render(); toast(`已清除 ${vr.length} 筆紀錄`);
+    if (GAS_URL){
+      for (const r of vr)
+        await api({ action:'delete', id:r.id }).catch(()=>{});
+    }
+  } else {
+    // 單筆刪除
+    records = records.filter(r=>r.id!==String(id));
+    lsS(LS.REC,records); render(); toast('🗑 已刪除');
+    if (GAS_URL)
+      api({ action:'delete', id }).catch(()=>{});
+  }
+}
+
+/* Clear all - 使用 del-modal 重複利用 */
+async function clearAllConfirm(){
+  const vr = records.filter(r=>r.vehicle===curVeh);
+  if (!vr.length){ toast('無可清除的紀錄'); return; }
+  // 借用刪除 Modal 顯示確認
+  pendingDeleteId = '__ALL__';
+  document.getElementById('del-info').innerHTML =
+    `<div style="font-size:15px;margin-bottom:6px">⚠ 清除 ${curVeh} 全部紀錄</div>` +
+    `<div style="font-size:13px;color:var(--red);font-weight:700">共 ${vr.length} 筆，刪除後無法復原</div>`;
+  document.getElementById('del-modal').classList.remove('hidden');
+}
+
+/* ══════════════════════════════════════════
+   Google Calendar
+   ══════════════════════════════════════════ */
+function openGCal(url){
+  const a = document.createElement('a');
+  a.href=url; a.target='_blank'; a.rel='noopener noreferrer';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function buildGCalURL(r){
+  const d = String(r.date).replace(/-/g,'');
+  let start, end;
+  if (r.timePick && r.timeArrive){
+    start = d+'T'+r.timePick.replace(':','')+'00';
+    end   = d+'T'+r.timeArrive.replace(':','')+'00';
+    if (r.timeArrive<r.timePick){
+      const nd=new Date(r.date+'T00:00:00'); nd.setDate(nd.getDate()+1);
+      end=nd.toISOString().split('T')[0].replace(/-/g,'')+'T'+r.timeArrive.replace(':','')+'00';
+    }
+  } else if (r.timePick){
+    start=d+'T'+r.timePick.replace(':','')+'00';
+    const [h,m]=r.timePick.split(':').map(Number);
+    end=d+'T'+String(h+1).padStart(2,'0')+String(m).padStart(2,'0')+'00';
+  } else {
+    const nd=new Date(r.date+'T00:00:00'); nd.setDate(nd.getDate()+1);
+    start=d; end=nd.toISOString().split('T')[0].replace(/-/g,'');
+  }
+  const meal=[r.noLunch?'❌未供午餐':'',r.noDinner?'❌未供晚餐':''].filter(Boolean).join(' ');
+  const det=[
+    `📋 出車類別：${r.vehicle}`,
+    `🗺️ 行程：${r.route||'（未填）'}`,
+    r.totalKm!==''?`📍 里程：${r.kmStart}→${r.kmEnd} km（共 ${r.totalKm} km）`:'',
+    r.fuelL?`⛽ 加油：${r.fuelL} L｜NT$${r.fuelCost||0}`:'',
+    r.otherType?`🧾 ${r.otherType}：NT$${r.otherCost||0}`:'',
+    meal?`🍽️ 用餐：${meal}`:'',
+    r.notes?`📝 備註：${r.notes}`:'',
+    '','─ 行車紀錄表自動同步 ─',
+  ].filter(Boolean).join('\n');
+  const title=encodeURIComponent(`🚗 出車｜${r.vehicle}${r.route?' ▸ '+r.route.slice(0,18):''}`);
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${encodeURIComponent(det)}&trp=false`;
+}
+
+function syncOne(id){
+  const r=records.find(x=>String(x.id)===String(id)); if(!r) return;
+  openGCal(buildGCalURL(r));
+  r.gcalSynced=true; lsS(LS.REC,records); render();
+  if (GAS_URL) api({ action:'markSynced', id:r.id }).catch(()=>{});
+  toast('已開啟 Google 行事曆新增頁面');
+}
+
+/* Report Modal */
+function openReportModal(){
+  if (!GAS_URL){ toast('請先設定 Apps Script 連線網址'); return; }
+  // 預設本月
+  const now = new Date();
+  const ym = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  document.getElementById('rpt-month').value = ym;
+  document.getElementById('report-modal').classList.remove('hidden');
+}
+function closeReportModal(){ document.getElementById('report-modal').classList.add('hidden'); }
+
+async function genReport(){
+  const ym = document.getElementById('rpt-month').value;
+  if (!ym){ toast('請選擇月份'); return; }
+  closeReportModal();
+  showStatus('產生 '+ym+' 月報表中（約需10-20秒）...');
+  try {
+    const res = await api({ action:'genReport', ym }, 30000);  // 30秒逾時
+    if (res.success){
+      const s = res.summary;
+      toast(`✓ 已產生「${res.sheetName}」（${res.rows} 筆）`);
+      // 若有摘要資料顯示小提示
+      if (s) setTimeout(()=> toast(`里程 ${s.totalKm} km｜油費 NT$${s.totalFuelCost}｜其他 NT$${s.totalOther}`), 2800);
+    } else throw new Error(res.error||'產生失敗');
+  } catch(e){
+    toast('⚠ 報表產生失敗：'+e.message);
+  } finally { hideStatus(); }
+}
+
+/* Sync modal */
+function openSyncModal(all){
+  const vr = (curVeh==='__ALL__' ? records : records.filter(r=>r.vehicle===curVeh));
+  const list = all ? vr : vr.filter(r=>!r.gcalSynced);
+  if (!list.length){ toast(all?'無紀錄可同步':'所有紀錄皆已同步'); return; }
+  document.getElementById('sync-list').innerHTML = list.map(r=>{
+    const time=[r.timePick,r.timeArrive].filter(Boolean).join('→')||'全天事件';
+    const km=r.totalKm!==''?`${r.totalKm} km`:'（司機車）';
+    return `<div class="sync-item" onclick="this.querySelector('input').click()">
+      <input type="checkbox" class="sync-chk" data-id="${r.id}" checked onclick="event.stopPropagation()">
+      <div class="sync-item-info">
+        <div class="sync-item-title">${fmtD(r.date)} ${wdOf(r.date)}&nbsp;
+          <span style="font-family:var(--mono);font-size:11px;background:#e8f0fe;color:var(--navy);padding:1px 6px;border-radius:3px">${esc(r.vehicle)}</span>
+          ${r.gcalSynced?'&nbsp;<span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:1px 6px;border-radius:3px">✓ 已同步</span>':''}
+        </div>
+        <div class="sync-item-sub">${esc(r.route)||'（未填）'}｜${time}｜${km}</div>
+      </div></div>`;
+  }).join('');
+  document.getElementById('modal').classList.remove('hidden');
+}
+function closeModal(){ document.getElementById('modal').classList.add('hidden'); }
+function selAll(v){ document.querySelectorAll('.sync-chk').forEach(c=>c.checked=v); }
+function selUnsync(){
+  document.querySelectorAll('.sync-chk').forEach(c=>{
+    const r=records.find(x=>String(x.id)===c.dataset.id); c.checked=r&&!r.gcalSynced;
+  });
+}
+let syncQ=[],syncI=0;
+function startSync(){
+  const ids=[...document.querySelectorAll('.sync-chk:checked')].map(c=>c.dataset.id);
+  if(!ids.length){toast('請至少勾選一筆');return;}
+  closeModal(); syncQ=ids; syncI=0; doSync();
+}
+function doSync(){
+  if(syncI>=syncQ.length){render();toast(`✓ 已開啟 ${syncQ.length} 個行事曆頁面`);return;}
+  const r=records.find(x=>String(x.id)===syncQ[syncI]);
+  if(r){ openGCal(buildGCalURL(r)); r.gcalSynced=true; lsS(LS.REC,records); if(GAS_URL) api({action:'markSynced',id:r.id}).catch(()=>{}); }
+  syncI++; setTimeout(doSync, 800);
+}
+
+/* ══════════════════════════════════════════
+   Render（節流防抖，避免重複渲染）
+   ══════════════════════════════════════════ */
+let renderTimer = null;
+function render(){
+  if (renderTimer) clearTimeout(renderTimer);
+  renderTimer = setTimeout(_render, 30);
+}
+
+function _render(){
+  const vr = curVeh==='__ALL__'
+    ? [...records].sort((a,b)=>String(b.date).localeCompare(String(a.date)))
+    : records.filter(r=>r.vehicle===curVeh);
+
+  document.getElementById('rec-count').textContent = `（${vr.length} 筆）`;
+  const tbody  = document.getElementById('tbody');
+  const tfoot  = document.getElementById('tfoot');
+  const noData = document.getElementById('no-data');
+
+  if (!vr.length){ tbody.innerHTML=''; tfoot.innerHTML=''; noData.style.display='block'; renderStats([]); return; }
+  noData.style.display='none';
+
+  // 用 DocumentFragment 一次插入，避免多次 reflow
+  const frag = document.createDocumentFragment();
+  let totKm=0, totFuel=0, totFuelCost=0, totOther=0, totSynced=0;
+
+  vr.forEach(r=>{
+    const hasYi = r.route && String(r.route).includes('易');
+    const tr = document.createElement('tr');
+    if (hasYi) tr.style.cssText = 'background:#fffbeb;border-left:3px solid #f59e0b';
+    const km = r.totalKm!==''&&r.totalKm!==undefined ? Number(r.totalKm) : '';
+    if (km!=='') totKm+=km;
+    totFuel+=+r.fuelL||0; totFuelCost+=+r.fuelCost||0; totOther+=+r.otherCost||0;
+    if(r.gcalSynced) totSynced++;
+    const routeHtml = hasYi
+      ? `<span class="yi-badge">易</span>${esc(r.route)}`
+      : (esc(r.route)||'—');
+    const mealHtml = [
+      r.noLunch?'<span class="tag-lunch">午✗</span>':'',
+      r.noDinner?'<span class="tag-dinner">晚✗</span>':''
+    ].filter(Boolean).join(' ') || '—';
+    const gcalHtml = r.gcalSynced
+      ? `<span class="sync-tag sync-ok">✓已同步</span>`
+      : `<button class="sync-no" onclick="syncOne('${r.id}')">📅 同步</button>`;
+    tr.innerHTML = `
+      <td style="font-family:var(--mono);font-size:12px">${fmtD(r.date)}</td>
+      <td>${wdOf(r.date)}</td>
+      <td><span style="background:#e8f0fe;color:var(--navy);padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;font-family:var(--mono)">${esc(r.vehicle)}</span></td>
+      <td class="route" title="${esc(r.route)}">${routeHtml}</td>
+      <td style="font-family:var(--mono)">${r.kmStart||'—'}</td>
+      <td style="font-family:var(--mono)">${r.kmEnd||'—'}</td>
+      <td style="font-family:var(--mono);font-weight:700;color:var(--navy-dark)">${km!==''?km+' km':'—'}</td>
+      <td style="font-family:var(--mono)">${r.timePick||'—'}</td>
+      <td style="font-family:var(--mono)">${r.timeArrive||'—'}</td>
+      <td style="font-family:var(--mono)">${r.fuelL||'—'}</td>
+      <td style="font-family:var(--mono)">${r.fuelCost?'NT$'+Number(r.fuelCost).toLocaleString():'—'}</td>
+      <td>${esc(r.otherType)||'—'}</td>
+      <td style="font-family:var(--mono)">${r.otherCost?'NT$'+Number(r.otherCost).toLocaleString():'—'}</td>
+      <td>${mealHtml}</td>
+      <td style="max-width:90px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.notes)}">${esc(r.notes)||'—'}</td>
+      <td>${gcalHtml}</td>
+      <td style="padding:8px 10px"><button class="del-btn" onclick="deleteRecord('${r.id}')">🗑 刪除</button></td>`;
+    frag.appendChild(tr);
+  });
+
+  tbody.innerHTML='';
+  tbody.appendChild(frag);
+
+  tfoot.innerHTML=`<tr>
+    <td colspan="4">合計（${vr.length} 筆）</td><td colspan="2"></td>
+    <td>${totKm} km</td><td colspan="2"></td>
+    <td>${totFuel.toFixed(2)} L</td><td>NT$${totFuelCost.toLocaleString()}</td>
+    <td></td><td>NT$${totOther.toLocaleString()}</td>
+    <td colspan="4"></td></tr>`;
+
+  document.getElementById('s-km').textContent      = totKm+' km';
+  document.getElementById('s-fuel').textContent    = totFuel.toFixed(2)+' L';
+  document.getElementById('s-fuelcost').textContent= 'NT$'+totFuelCost.toLocaleString();
+  document.getElementById('s-synced').textContent  = totSynced+' 筆';
+}
+
+function renderStats(vr){
+  const t=vr.reduce((a,r)=>({km:a.km+(r.totalKm!==''&&r.totalKm!==undefined?+r.totalKm:0),fuel:a.fuel+(+r.fuelL||0),fc:a.fc+(+r.fuelCost||0),sy:a.sy+(r.gcalSynced?1:0)}),{km:0,fuel:0,fc:0,sy:0});
+  document.getElementById('s-km').textContent=t.km+' km';
+  document.getElementById('s-fuel').textContent=t.fuel.toFixed(2)+' L';
+  document.getElementById('s-fuelcost').textContent='NT$'+t.fc.toLocaleString();
+  document.getElementById('s-synced').textContent=t.sy+' 筆';
+}
+
+/* CSV export */
+function exportCSV(){
+  const vr=curVeh==='__ALL__'?records:records.filter(r=>r.vehicle===curVeh);
+  if(!vr.length){toast('目前無紀錄可匯出');return;}
+
+  // 時間格式修正（防止 GAS 回傳數字時間值）
+  function fmtTime(v){
+    if(!v&&v!==0) return '';
+    if(typeof v==='string'&&v.includes(':')) return v;
+    if(typeof v==='number'){
+      const m=Math.round(v*24*60);
+      return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+    }
+    return String(v||'');
+  }
+
+  const H=['日期','星期','出車類別','行程',
+           '起始里程(km)','結束里程(km)','總里程(km)',
+           '接車時間','抵達時間',
+           '加油量(L)','油費(NT$)','其他費用類型','其他金額(NT$)',
+           '未供午餐','未供晚餐','備註','已同步行事曆'];
+  const rows=vr.map(r=>[
+    fmtD(r.date), wdOf(r.date), r.vehicle, r.route,
+    r.kmStart, r.kmEnd, r.totalKm,
+    fmtTime(r.timePick), fmtTime(r.timeArrive),
+    r.fuelL, r.fuelCost,
+    r.otherType, r.otherCost,
+    r.noLunch?'是':'', r.noDinner?'是':'',
+    r.notes, r.gcalSynced?'是':''
+  ]);
+  const csv=[H,...rows].map(row=>row.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`${curVeh==='__ALL__'?'全部':curVeh}_行車紀錄_${todayStr()}.csv`;
+  document.body.appendChild(a);a.click();a.remove();
+  toast('📥 CSV 已匯出');
+}
+
+/* Status bar (底部滑出，非 overlay) */
+function showStatus(msg){
+  document.getElementById('status-text').textContent=msg;
+  document.getElementById('status-bar').classList.add('show');
+}
+function hideStatus(){ document.getElementById('status-bar').classList.remove('show'); }
+
+/* Toast */
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+function showMsg(m){ const el=document.getElementById('form-msg'); el.textContent=m; setTimeout(()=>el.textContent='',3000); }
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
