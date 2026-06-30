@@ -747,6 +747,13 @@ async function addRecord(){
   const drv = v==='司機車';
   const kS  = drv ? '' : document.getElementById('f-km-s').value;
   const kE  = drv ? '' : document.getElementById('f-km-e').value;
+
+  // 里程驗證（司機車不需要）
+  if (!drv){
+    if (kS===''||kE===''){ showMsg('請填入起始與結束里程'); return; }
+    if (+kE < +kS){ showMsg('結束里程不可小於起始里程，總里程不可為負數'); return; }
+  }
+
   const tot = (!drv && kS!=='' && kE!=='') ? Math.max(0,+kE-+kS) : '';
   const route = document.getElementById('f-route').value.trim();
 
