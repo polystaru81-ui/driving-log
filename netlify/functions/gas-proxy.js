@@ -2,7 +2,7 @@
 // 伺服器端代理：瀏覽器 → Netlify Function → Google Apps Script
 // 解決瀏覽器直接呼叫 GAS 被 Google 攔截驗證的問題
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbz8MrvBn5vdHemqYvWiIyQOCYb0jkn-yCOQO8aJoMugmRoKkqooKFL3qa0-pZPzv82w/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyW08nH-zz0zoxTHFPcFiA1ciYSoqzjIAjMwx9vRc2qJTOHTTiwYp3BSgIl9Jie3GIS/exec';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
