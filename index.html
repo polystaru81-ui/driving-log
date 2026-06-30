@@ -601,6 +601,9 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('vtabs').addEventListener('click', e => {
     const b = e.target.closest('.vtab'); if (b) setVeh(b.dataset.v);
   });
+
+  // 開啟網頁時自動從雲端同步最新資料（背景靜默進行，不阻塞畫面）
+  loadFromGas(true);
 });
 
 /* ══════════════════════════════════════════
@@ -625,22 +628,23 @@ function setConn(ok, errMsg){
 }
 
 /* 手動從雲端拉取 */
-async function loadFromGas(){
-  if (!GAS_URL){ toast('尚未設定 Apps Script 網址'); return; }
-  showStatus('從 Google Sheets 載入中...');
+async function loadFromGas(silent){
+  if (!GAS_URL){ if(!silent) toast('尚未設定 Apps Script 網址'); return; }
+  if (!silent) showStatus('從 Google Sheets 載入中...');
   try {
     const data = await api({ action:'getAll' });
     if (Array.isArray(data)){
       records = data; lsS(LS.REC, records);
       setConn(true); render();
-      toast(`✓ 已載入 ${records.length} 筆紀錄`);
+      if (!silent) toast(`✓ 已載入 ${records.length} 筆紀錄`);
     } else {
       throw new Error(data.error || JSON.stringify(data).slice(0,150));
     }
   } catch(e){
     setConn(false, e.message);
-    toast('⚠ 載入失敗：' + e.message);
-  } finally { hideStatus(); }
+    if (!silent) toast('⚠ 載入失敗：' + e.message);
+    // 靜默模式失敗時不打擾使用者，繼續顯示本機快取資料
+  } finally { if (!silent) hideStatus(); }
 }
 
 /* ══════════════════════════════════════════
