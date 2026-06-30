@@ -272,7 +272,7 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
   <div class="gcal-strip">
     <div>
       <div class="gcal-strip-info">📅 Google 行事曆整合（考勤紀錄）</div>
-      <div class="gcal-strip-sub">行程含「易」自動同步 ・ 接車→抵達時間自動成為事件時段</div>
+      <div class="gcal-strip-sub">行程含「易」自動同步 ・ 接送→下班時間自動成為事件時段</div>
     </div>
     <div class="gcal-strip-btns">
       <button class="btn btn-gcal-o" onclick="openSyncModal(false)" style="font-size:13px;padding:7px 13px;">📋 同步未同步紀錄</button>
@@ -330,13 +330,13 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
 
       <div class="frow c2">
         <div class="fgroup">
-          <label class="flabel">接車時間 <span class="hint">（格式 HH:MM，例：08:30）</span></label>
+          <label class="flabel">接送時間 <span class="hint">（格式 HH:MM，例：08:30）</span></label>
           <input type="text" id="f-tp" class="inp mono" placeholder="08:00"
                  maxlength="5" inputmode="numeric"
                  oninput="autoColon(this)" autocomplete="off">
         </div>
         <div class="fgroup">
-          <label class="flabel">抵達時間 <span class="hint">（格式 HH:MM，例：17:30）</span></label>
+          <label class="flabel">下班時間 <span class="hint">（格式 HH:MM，例：17:30）</span></label>
           <input type="text" id="f-ta" class="inp mono" placeholder="17:00"
                  maxlength="5" inputmode="numeric"
                  oninput="autoColon(this)" autocomplete="off">
@@ -514,7 +514,7 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
     <div class="modal-body">
       <div class="modal-tip">
         勾選紀錄 → 點「開始同步」→ 系統依序開啟行事曆新增頁面，確認後點「儲存」即完成。<br>
-        <b style="color:var(--gcal)">事件時間 = 接車時間 → 抵達時間（無填時間則建立全天事件）</b>
+        <b style="color:var(--gcal)">事件時間 = 接送時間 → 下班時間（無填時間則建立全天事件）</b>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
         <button class="btn btn-ghost" onclick="selAll(true)" style="font-size:12px;padding:5px 10px;">全選</button>
@@ -756,13 +756,19 @@ async function addRecord(){
 
   const tot = (!drv && kS!=='' && kE!=='') ? Math.max(0,+kE-+kS) : '';
   const route = document.getElementById('f-route').value.trim();
+  const tp = parseTime(document.getElementById('f-tp').value);
+  const ta = parseTime(document.getElementById('f-ta').value);
+
+  // 必填驗證
+  if (!route){ showMsg('請填入行程'); return; }
+  if (!tp){ showMsg('請填入接送時間（格式 HH:MM）'); return; }
+  if (!ta){ showMsg('請填入下班時間（格式 HH:MM）'); return; }
 
   const rec = {
     id: String(Date.now()),
     date, weekday: wdOf(date),
     vehicle:v, route, kmStart:kS, kmEnd:kE, totalKm:tot,
-    timePick:   parseTime(document.getElementById('f-tp').value),
-    timeArrive: parseTime(document.getElementById('f-ta').value),
+    timePick: tp, timeArrive: ta,
     fuelL:      document.getElementById('f-fl').value,
     fuelCost:   document.getElementById('f-fc').value,
     otherType:  document.getElementById('f-ot').value,
@@ -1106,7 +1112,7 @@ function exportCSV(){
 
   const H=['日期','星期','出車類別','行程',
            '起始里程(km)','結束里程(km)','總里程(km)',
-           '接車時間','抵達時間',
+           '接送時間','下班時間',
            '加油量(L)','油費(NT$)','其他費用類型','其他金額(NT$)',
            '未供午餐','未供晚餐','備註','已同步行事曆'];
   const rows=vr.map(r=>[
