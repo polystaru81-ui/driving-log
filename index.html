@@ -770,9 +770,12 @@ async function addRecord(){
 
   /* 2. 背景靜默同步到 GAS（不阻塞 UI）*/
   if (GAS_URL){
-    api({ action:'save', data: encodeURIComponent(JSON.stringify(rec)) })
-      .then(() => setConn(true))
-      .catch(() => setConn(false));
+    api({ action:'save', data: JSON.stringify(rec) })
+      .then(res => {
+        setConn(true);
+        if (res && res.success === false) toast('⚠ 雲端儲存失敗：' + (res.error||'未知錯誤'));
+      })
+      .catch(e => { setConn(false); toast('⚠ 雲端連線失敗，已暫存本機：' + e.message); });
   }
 
   /* 3. Google 行事曆 */
