@@ -326,7 +326,7 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
               取消
             </button>
           </div>
-          <div style="font-size:11px;color:#94a3b8;margin-top:4px">輸入後點「加入清單」，之後即可從下拉選單選取</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px">可直接修改上方選取的行程內容，點「加入清單」存成新行程</div>
         </div>
         <!-- 隱藏的 input 儲存實際行程值，方便 addRecord 讀取 -->
         <input type="hidden" id="f-route">
@@ -606,16 +606,17 @@ async function api(params, timeout) {
 }
 
 /* ══════════════════════════════════════════
-   Init（不自動拉取雲端，手動點「重新整理」）
+   Init：開啟即從 Google Sheets 讀取資料
    ══════════════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', () => {
-  // 網址已寫死，直接隱藏設定區塊並標示連線成功
   document.getElementById('setup-banner').classList.add('hidden');
   setConn(true);
   setToday();
   setVeh(curVeh);
   refreshDL();
-  render();
+
+  // 先顯示載入中提示，不顯示本機舊快取
+  showLoadingRecords();
 
   document.getElementById('f-date').addEventListener('change', syncDay);
   document.getElementById('f-vehicle').addEventListener('change', onVehChange);
@@ -625,12 +626,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const b = e.target.closest('.vtab'); if (b) setVeh(b.dataset.v);
   });
 
-  // 開啟網頁時自動從雲端同步最新資料（背景靜默進行，不阻塞畫面）
-  loadFromGas(true);
+  // 開啟即從雲端載入最新歷史紀錄（顯示載入動畫）
+  loadFromGas(false);
   // 同步從雲端載入歷史行程到下拉選單
   loadRoutesFromGas();
 
-  // 長按路線下拉選單中的選項可刪除（桌機右鍵選單提示）
   document.getElementById('f-route-sel').addEventListener('contextmenu', e => {
     e.preventDefault();
     const val = document.getElementById('f-route-sel').value;
@@ -661,6 +661,17 @@ function setConn(ok, errMsg){
 }
 
 /* 手動從雲端拉取 */
+/* 載入中佔位顯示 */
+function showLoadingRecords(){
+  document.getElementById('tbody').innerHTML = '';
+  document.getElementById('tfoot').innerHTML = '';
+  document.getElementById('no-data').style.display = 'block';
+  document.getElementById('no-data').innerHTML =
+    `<div style="font-size:28px;margin-bottom:8px">⏳</div>
+     <div style="font-size:14px;color:var(--gray-400)">正在從 Google Sheets 載入紀錄...</div>`;
+  document.getElementById('rec-count').textContent = '（載入中）';
+}
+
 async function loadFromGas(silent){
   if (!GAS_URL){ if(!silent) toast('尚未設定 Apps Script 網址'); return; }
   if (!silent) showStatus('從 Google Sheets 載入中...');
@@ -676,7 +687,8 @@ async function loadFromGas(silent){
   } catch(e){
     setConn(false, e.message);
     if (!silent) toast('⚠ 載入失敗：' + e.message);
-    // 靜默模式失敗時不打擾使用者，繼續顯示本機快取資料
+    // 連線失敗時顯示本機快取（若有）
+    render();
   } finally { if (!silent) hideStatus(); }
 }
 
@@ -782,8 +794,14 @@ function refreshDL(){
 function onRouteSelChange(){
   const val = document.getElementById('f-route-sel').value;
   document.getElementById('f-route').value = val;
-  // 若選了路線，收起新路線輸入框
-  if (val) cancelNewRoute();
+
+  if (val) {
+    // 將選取的行程同步到新行程輸入框，方便複製修改後存成新行程
+    document.getElementById('f-route-new').value = val;
+    document.getElementById('f-route-new-wrap').classList.remove('hidden');
+  } else {
+    cancelNewRoute();
+  }
 }
 
 function toggleNewRoute(){
