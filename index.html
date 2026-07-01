@@ -304,9 +304,32 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
       </div>
 
       <div class="fgroup">
-        <label class="flabel">行程 <span class="hint">（自動記憶歷史路線・含「易」自動同步行事曆）</span></label>
-        <input type="text" id="f-route" class="inp" list="route-list" placeholder="例：公司→中山路→易增→公司" autocomplete="off">
-        <datalist id="route-list"></datalist>
+        <label class="flabel">行程 <span class="hint">（選擇歷史路線或輸入新路線・含「易」自動同步行事曆）</span></label>
+        <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">
+          <select id="f-route-sel" class="inp" style="flex:1;min-width:160px" onchange="onRouteSelChange()">
+            <option value="">── 選擇歷史路線 ──</option>
+          </select>
+          <button type="button" onclick="toggleNewRoute()"
+            style="background:#e8f0fe;color:#1a3a5c;border:1.5px solid #bfdbfe;border-radius:var(--radius);padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+            ＋ 新路線
+          </button>
+        </div>
+        <div id="f-route-new-wrap" class="hidden" style="margin-top:6px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="f-route-new" class="inp" placeholder="輸入新路線，例：公司→中山路→易增→公司" autocomplete="off" style="flex:1">
+            <button type="button" onclick="addNewRoute()"
+              style="background:#1a3a5c;color:#fff;border:none;border-radius:var(--radius);padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+              加入清單
+            </button>
+            <button type="button" onclick="cancelNewRoute()"
+              style="background:#f1f5f9;color:#64748b;border:1.5px solid #e2e8f0;border-radius:var(--radius);padding:9px 12px;font-size:13px;cursor:pointer;flex-shrink:0">
+              取消
+            </button>
+          </div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px">輸入後點「加入清單」，之後即可從下拉選單選取</div>
+        </div>
+        <!-- 隱藏的 input 儲存實際行程值，方便 addRecord 讀取 -->
+        <input type="hidden" id="f-route">
       </div>
 
       <div class="fgroup" id="km-section">
@@ -604,6 +627,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // 開啟網頁時自動從雲端同步最新資料（背景靜默進行，不阻塞畫面）
   loadFromGas(true);
+  // 同步從雲端載入歷史行程到下拉選單
+  loadRoutesFromGas();
+
+  // 長按路線下拉選單中的選項可刪除（桌機右鍵選單提示）
+  document.getElementById('f-route-sel').addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const val = document.getElementById('f-route-sel').value;
+    if (!val || val === '') return;
+    if (confirm(`刪除路線「${val}」？`)) deleteRoute(val);
+  });
 });
 
 /* ══════════════════════════════════════════
@@ -710,13 +743,99 @@ function tog(id){
   el.className = base + (cbState[id]?' on':'');
 }
 
-/* Routes datalist */
-function refreshDL(){
-  document.getElementById('route-list').innerHTML =
-    routes.map(r=>`<option value="${esc(r)}">`).join('');
+/* ══════════════════════════════════════════
+   行程下拉選單管理
+   ══════════════════════════════════════════ */
+
+// 從 GAS 讀取所有歷史行程並合併到本地清單
+async function loadRoutesFromGas(){
+  if (!GAS_URL) return;
+  try {
+    const data = await api({ action:'getRoutes' });
+    if (Array.isArray(data) && data.length > 0){
+      // data = [{ route, count }, ...]，已依頻率排序
+      const gasRoutes = data.map(d => d.route);
+      // 合併：雲端行程優先，本地有但雲端沒有的補在後面
+      const merged = [...new Set([...gasRoutes, ...routes])];
+      routes = merged;
+      lsS(LS.ROUTES, routes);
+      refreshDL();
+    }
+  } catch(e){
+    // 靜默失敗，使用本地快取
+  }
 }
+
+function refreshDL(){
+  const sel = document.getElementById('f-route-sel');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">── 請選擇行程 ──</option>';
+  routes.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r; opt.textContent = r;
+    sel.appendChild(opt);
+  });
+  // 保留目前選取值
+  if (cur && routes.includes(cur)) sel.value = cur;
+}
+
+function onRouteSelChange(){
+  const val = document.getElementById('f-route-sel').value;
+  document.getElementById('f-route').value = val;
+  // 若選了路線，收起新路線輸入框
+  if (val) cancelNewRoute();
+}
+
+function toggleNewRoute(){
+  const wrap = document.getElementById('f-route-new-wrap');
+  wrap.classList.toggle('hidden');
+  if (!wrap.classList.contains('hidden')){
+    document.getElementById('f-route-new').focus();
+    // 清除下拉選單選取
+    document.getElementById('f-route-sel').value = '';
+    document.getElementById('f-route').value = '';
+  }
+}
+
+function addNewRoute(){
+  const inp  = document.getElementById('f-route-new');
+  const val  = inp.value.trim();
+  if (!val){ inp.focus(); return; }
+  if (!routes.includes(val)){
+    routes.push(val);
+    lsS(LS.ROUTES, routes);
+    refreshDL();
+  }
+  // 自動選取新路線
+  document.getElementById('f-route-sel').value = val;
+  document.getElementById('f-route').value = val;
+  inp.value = '';
+  document.getElementById('f-route-new-wrap').classList.add('hidden');
+  toast('✓ 已加入「' + val + '」');
+}
+
+function cancelNewRoute(){
+  document.getElementById('f-route-new').value = '';
+  document.getElementById('f-route-new-wrap').classList.add('hidden');
+}
+
 function addRoute(r){
-  if (r && !routes.includes(r)){ routes.push(r); lsS(LS.ROUTES,routes); refreshDL(); }
+  if (r && !routes.includes(r)){
+    routes.unshift(r);  // 新路線加到最前面
+    lsS(LS.ROUTES, routes);
+    refreshDL();
+  }
+}
+
+/* 刪除路線 */
+function deleteRoute(r){
+  routes = routes.filter(x => x !== r);
+  lsS(LS.ROUTES, routes); refreshDL();
+  if (document.getElementById('f-route').value === r){
+    document.getElementById('f-route-sel').value = '';
+    document.getElementById('f-route').value = '';
+  }
+  toast('已刪除路線：' + r);
 }
 
 /* 自動補冒號：輸入 4 碼數字後自動插入 : 成 HH:MM */
@@ -820,6 +939,8 @@ function clearForm(){
   document.getElementById('f-km-s').value = v!=='司機車' ? (lastKm[v]??'') : '';
   ['f-km-e','f-route','f-tp','f-ta','f-fl','f-fc','f-oc','f-notes']
     .forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-route-sel').value = '';
+  cancelNewRoute();
   document.getElementById('f-ot').value='';
   cbState={nl:false,nd:false,gc:false};
   ['nl','nd','gc'].forEach(id=>{
