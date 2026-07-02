@@ -846,27 +846,6 @@ function deleteSelectedRoute(){
   document.getElementById('del-modal').classList.remove('hidden');
 }
 
-  if (val) {
-    document.getElementById('f-route-new').value = val;
-    document.getElementById('f-route-new-wrap').classList.remove('hidden');
-  } else {
-    cancelNewRoute();
-  }
-}
-
-/* 刪除目前下拉選取的路線 */
-function deleteSelectedRoute(){
-  const val = document.getElementById('f-route-sel').value;
-  if (!val){ toast('請先選擇要刪除的行程'); return; }
-
-  pendingDeleteId = '__ROUTE__:' + val;
-  document.getElementById('del-info').innerHTML =
-    `<div style="font-size:15px;margin-bottom:6px">🗑 刪除行程記憶</div>
-     <div style="font-size:13px;color:var(--gray-700);background:#f8fafc;padding:8px 12px;border-radius:8px;word-break:break-all;margin-bottom:6px">${esc(val)}</div>
-     <div style="font-size:12px;color:var(--gray-400)">僅從行程清單中移除，不影響已儲存的出車紀錄</div>`;
-  document.getElementById('del-modal').classList.remove('hidden');
-}
-
 function toggleNewRoute(){
   const wrap = document.getElementById('f-route-new-wrap');
   wrap.classList.toggle('hidden');
