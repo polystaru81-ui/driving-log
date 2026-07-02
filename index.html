@@ -617,6 +617,12 @@ async function api(params, timeout) {
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('setup-banner').classList.add('hidden');
   setConn(true);
+
+  // 清除本機殘留的空白行程
+  const before = routes.length;
+  routes = routes.filter(r => r && r.trim() !== '');
+  if (routes.length !== before) lsS(LS.ROUTES, routes);
+
   setToday();
   setVeh(curVeh);
   refreshDL();
@@ -685,7 +691,10 @@ async function loadFromGas(silent){
     const data = await api({ action:'getAll' });
     if (Array.isArray(data)){
       records = data; lsS(LS.REC, records);
-      setConn(true); render();
+      setConn(true);
+      // 從雲端記錄重建路線清單（確保跨裝置同步）
+      rebuildRoutesFromRecords();
+      render();
       if (!silent) toast(`✓ 已載入 ${records.length} 筆紀錄`);
     } else {
       throw new Error(data.error || JSON.stringify(data).slice(0,150));
@@ -766,44 +775,92 @@ function tog(id){
    ══════════════════════════════════════════ */
 
 // 從 GAS 讀取所有歷史行程並合併到本地清單
+/* 從已載入的 records 提取路線（確保跨裝置同步）*/
+function rebuildRoutesFromRecords(){
+  const seen = new Set();
+  const freq = {};
+  records.forEach(r => {
+    const rt = String(r.route||'').trim();
+    freq[rt] = (freq[rt]||0) + 1;
+  });
+  // 依頻率排序，保留空白路線以便刪除
+  const sorted = Object.keys(freq).sort((a,b) => freq[b]-freq[a]);
+  routes = sorted;
+  lsS(LS.ROUTES, routes);
+  refreshDL();
+}
+
 async function loadRoutesFromGas(){
   if (!GAS_URL) return;
   try {
     const data = await api({ action:'getRoutes' });
-    if (Array.isArray(data) && data.length > 0){
-      // data = [{ route, count }, ...]，已依頻率排序
-      const gasRoutes = data.map(d => d.route);
-      // 合併：雲端行程優先，本地有但雲端沒有的補在後面
-      const merged = [...new Set([...gasRoutes, ...routes])];
-      routes = merged;
+    if (Array.isArray(data)){
+      // 以 GAS 為主要來源（確保跨裝置一致）
+      const gasRoutes = data.map(d => d.route).filter(r => r && r.trim());
+      // 本機新增但尚未同步的路線也保留
+      const localOnly = routes.filter(r => r && r.trim() && !gasRoutes.includes(r));
+      routes = [...gasRoutes, ...localOnly];
       lsS(LS.ROUTES, routes);
       refreshDL();
     }
-  } catch(e){
-    // 靜默失敗，使用本地快取
-  }
+  } catch(e){ /* 靜默失敗，使用本機快取 */ }
 }
 
 function refreshDL(){
   const sel = document.getElementById('f-route-sel');
   const cur = sel.value;
   sel.innerHTML = '<option value="">── 請選擇行程 ──</option>';
-  routes.forEach(r => {
+
+  // 過濾純空白、但保留顯示標記讓使用者刪除
+  routes.forEach((r, idx) => {
     const opt = document.createElement('option');
-    opt.value = r; opt.textContent = r;
+    const isEmpty = (!r || r.trim() === '');
+    // 空白路線用特殊 value 標記（__EMPTY__:索引），避免跟「請選擇」混淆
+    opt.value = isEmpty ? `__EMPTY__:${idx}` : r;
+    opt.textContent = isEmpty ? '⚠ （空白行程，請點選後刪除）' : r;
+    if (isEmpty) opt.style.color = '#dc2626';
     sel.appendChild(opt);
   });
-  // 保留目前選取值
-  if (cur && routes.includes(cur)) sel.value = cur;
+
+  // 恢復先前選取值
+  const prev = [...sel.options].find(o => o.value === cur);
+  if (prev) sel.value = cur;
 }
 
 function onRouteSelChange(){
   const val = document.getElementById('f-route-sel').value;
-  document.getElementById('f-route').value = val;
+  const isEmptyRoute = val.startsWith('__EMPTY__:');
 
-  // 有選到路線才顯示刪除按鈕
+  // f-route 只記錄真實路線值（空白路線填空字串）
+  document.getElementById('f-route').value = isEmptyRoute ? '' : val;
+
+  // 有選取任何路線（包含空白路線）都顯示刪除按鈕
   const delBtn = document.getElementById('btn-del-route');
-  if (delBtn) delBtn.style.display = (val && val !== '') ? '' : 'none';
+  if (delBtn) delBtn.style.display = val ? '' : 'none';
+
+  if (val && !isEmptyRoute) {
+    document.getElementById('f-route-new').value = val;
+    document.getElementById('f-route-new-wrap').classList.remove('hidden');
+  } else {
+    cancelNewRoute();
+  }
+}
+
+/* 刪除目前下拉選取的路線 */
+function deleteSelectedRoute(){
+  const val = document.getElementById('f-route-sel').value;
+  if (!val){ toast('請先選擇要刪除的行程'); return; }
+
+  const isEmptyRoute = val.startsWith('__EMPTY__:');
+  const displayName  = isEmptyRoute ? '（空白行程）' : val;
+
+  pendingDeleteId = '__ROUTE__:' + val;
+  document.getElementById('del-info').innerHTML =
+    `<div style="font-size:15px;margin-bottom:6px">🗑 刪除行程記憶</div>
+     <div style="font-size:13px;color:var(--gray-700);background:#f8fafc;padding:8px 12px;border-radius:8px;word-break:break-all;margin-bottom:6px">${esc(displayName)}</div>
+     <div style="font-size:12px;color:var(--gray-400)">僅從行程清單中移除，不影響已儲存的出車紀錄</div>`;
+  document.getElementById('del-modal').classList.remove('hidden');
+}
 
   if (val) {
     document.getElementById('f-route-new').value = val;
@@ -838,15 +895,19 @@ function toggleNewRoute(){
 }
 
 function addNewRoute(){
-  const inp  = document.getElementById('f-route-new');
-  const val  = inp.value.trim();
-  if (!val){ inp.focus(); return; }
+  const inp = document.getElementById('f-route-new');
+  const val = inp.value.trim();
+  if (!val || val === ''){
+    inp.style.borderColor = '#dc2626';
+    inp.placeholder = '⚠ 行程不可為空白，請輸入內容';
+    setTimeout(()=>{ inp.style.borderColor=''; inp.placeholder='輸入新路線，例：公司→中山路→易增→公司'; }, 2500);
+    inp.focus(); return;
+  }
   if (!routes.includes(val)){
-    routes.push(val);
+    routes.unshift(val);
     lsS(LS.ROUTES, routes);
     refreshDL();
   }
-  // 自動選取新路線
   document.getElementById('f-route-sel').value = val;
   document.getElementById('f-route').value = val;
   inp.value = '';
@@ -1040,10 +1101,21 @@ async function confirmDelete(){
   if (!id) return;
 
   if (String(id).startsWith('__ROUTE__:')){
-    // 刪除行程記憶
     const routeVal = id.replace('__ROUTE__:', '');
-    deleteRoute(routeVal);
-    document.getElementById('btn-del-route').style.display = 'none';
+    if (routeVal.startsWith('__EMPTY__:')){
+      // 刪除空白路線：找到對應索引並移除
+      const idx = parseInt(routeVal.replace('__EMPTY__:', ''), 10);
+      routes.splice(idx, 1);
+      lsS(LS.ROUTES, routes);
+      refreshDL();
+      toast('✓ 已刪除空白行程');
+    } else {
+      deleteRoute(routeVal);
+    }
+    const delBtn = document.getElementById('btn-del-route');
+    if (delBtn) delBtn.style.display = 'none';
+    document.getElementById('f-route-sel').value = '';
+    document.getElementById('f-route').value = '';
 
   } else if (id === '__ALL__'){
     // 清除本車牌全部紀錄
