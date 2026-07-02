@@ -245,21 +245,7 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
 
 <div class="container">
 
-  <!-- Setup -->
-  <div class="setup-banner" id="setup-banner">
-    <h3>⚙️ 首次設定：連接 Google Sheets（選填）</h3>
-    <div class="setup-steps">
-      <b>步驟 1：</b>開啟 Google Sheets → 擴充功能 → Apps Script → 貼入 Code.gs → 儲存<br>
-      <b>步驟 2：</b>部署 → 新增部署作業 → 網頁應用程式 → 存取權「所有人」<br>
-      <b>步驟 3：</b>複製「網頁應用程式 URL」貼到下方 → 儲存<br>
-      <span style="color:#92400e;font-size:11px">※ 未設定時資料仍會儲存在本機，可隨時設定</span>
-    </div>
-    <div class="setup-row">
-      <input type="text" id="gas-inp" placeholder="https://script.google.com/macros/s/..." autocomplete="off">
-      <button class="btn btn-sheets" onclick="saveGasUrl()">✓ 儲存連線</button>
-      <button class="btn btn-ghost" onclick="document.getElementById('setup-banner').classList.add('hidden')">略過</button>
-    </div>
-  </div>
+  <!-- 設定 Banner 已移除：GAS 網址直接寫在程式碼內，自動連線 -->
 
   <!-- Stats -->
   <div class="stats-bar">
@@ -616,7 +602,6 @@ async function api(params, timeout) {
    Init：開啟即從 Google Sheets 讀取資料
    ══════════════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('setup-banner').classList.add('hidden');
   setConn(true);
 
   // 清除本機殘留的空白行程
