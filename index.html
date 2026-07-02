@@ -761,15 +761,16 @@ function tog(id){
 // 從 GAS 讀取所有歷史行程並合併到本地清單
 /* 從已載入的 records 提取路線（確保跨裝置同步）*/
 function rebuildRoutesFromRecords(){
-  const seen = new Set();
   const freq = {};
   records.forEach(r => {
     const rt = String(r.route||'').trim();
-    freq[rt] = (freq[rt]||0) + 1;
+    if (rt) freq[rt] = (freq[rt]||0) + 1;
   });
-  // 依頻率排序，保留空白路線以便刪除
-  const sorted = Object.keys(freq).sort((a,b) => freq[b]-freq[a]);
-  routes = sorted;
+  // 依頻率排序的雲端路線
+  const fromRecords = Object.keys(freq).sort((a,b) => freq[b]-freq[a]);
+  // 保留本機手動新增、但尚未出現在紀錄中的路線（排最後）
+  const localOnly = routes.filter(r => r && r.trim() && !fromRecords.includes(r));
+  routes = [...fromRecords, ...localOnly];
   lsS(LS.ROUTES, routes);
   refreshDL();
 }
