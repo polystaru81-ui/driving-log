@@ -944,29 +944,47 @@ async function addRecord(){
   addRoute(route);
   if (!drv && kE!=='') { lastKm[v]=+kE; lsS(LS.KM,lastKm); }
 
-  /* 1. 立即存本地 → UI 立即更新 */
-  records.push(rec); lsS(LS.REC,records);
-  clearForm(); render();
+  /* 1. 先存本機快取 */
+  records.push(rec); lsS(LS.REC, records);
 
-  /* 2. 背景靜默同步到 GAS（不阻塞 UI）*/
-  if (GAS_URL){
-    api({ action:'save', data: JSON.stringify(rec) })
-      .then(res => {
-        setConn(true);
-        if (res && res.success === false) toast('⚠ 雲端儲存失敗：' + (res.error||'未知錯誤'));
-      })
-      .catch(e => { setConn(false); toast('⚠ 雲端連線失敗，已暫存本機：' + e.message); });
-  }
+  /* 2. 等待雲端同步確認（讓使用者知道是否成功）*/
+  const addBtn = document.getElementById('add-btn');
+  addBtn.disabled = true;
+  addBtn.textContent = '⏳ 同步中...';
+  showStatus('正在儲存到 Google Sheets...');
 
-  /* 3. Google 行事曆 */
-  const hasYi = route.includes('易');
-  if (hasYi || cbState.gc){
-    openGCal(buildGCalURL(rec));
-    rec.gcalSynced = true; lsS(LS.REC,records); render();
-    if (GAS_URL) api({ action:'markSynced', id:rec.id }).catch(()=>{});
-    toast(hasYi ? '📅 行程含「易」，已同步行事曆' : '✓ 已新增並開啟行事曆');
-  } else {
-    toast('✓ 紀錄已新增');
+  try {
+    if (GAS_URL){
+      const res = await api({ action:'save', data: JSON.stringify(rec) });
+      if (res && res.success === false){
+        throw new Error(res.error || '儲存失敗');
+      }
+      setConn(true);
+    }
+
+    /* 3. 成功 → 清除表單、更新畫面 */
+    clearForm(); render();
+
+    /* 4. Google 行事曆同步 */
+    const hasYi = route.includes('易');
+    if (hasYi || cbState.gc){
+      openGCal(buildGCalURL(rec));
+      rec.gcalSynced = true; lsS(LS.REC, records); render();
+      if (GAS_URL) api({ action:'markSynced', id:rec.id }).catch(()=>{});
+      toast(hasYi ? '📅 含「易」，已儲存並同步行事曆' : '✓ 已儲存並開啟行事曆');
+    } else {
+      toast('✅ 已成功同步到 Google Sheets');
+    }
+
+  } catch(e){
+    setConn(false, e.message);
+    // 失敗時資料仍保留在本機，告知使用者
+    render();
+    toast('⚠ 雲端同步失敗：' + e.message + '（已暫存本機，請稍後點「重新整理」）');
+  } finally {
+    addBtn.disabled = false;
+    addBtn.textContent = '✚ 新增紀錄';
+    hideStatus();
   }
 }
 
