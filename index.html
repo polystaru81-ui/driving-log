@@ -292,21 +292,36 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
       </div>
 
       <div class="fgroup">
-        <label class="flabel">行程 <span class="hint">（選擇歷史路線或輸入新路線・含「易」自動同步行事曆）</span></label>
+        <label class="flabel">行程 <span class="hint">（輸入關鍵字搜尋・含「易」自動同步行事曆）</span></label>
         <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">
-          <select id="f-route-sel" class="inp" style="flex:1;min-width:160px" onchange="onRouteSelChange()">
-            <option value="">── 選擇歷史路線 ──</option>
-          </select>
+          <!-- 搜尋輸入框 -->
+          <div style="flex:1;min-width:160px;position:relative">
+            <input type="text" id="f-route-search" class="inp"
+              placeholder="🔍 輸入關鍵字搜尋行程..."
+              autocomplete="off"
+              oninput="onRouteSearch()"
+              onfocus="showRouteDropdown()"
+              style="width:100%">
+            <!-- 下拉清單 -->
+            <div id="route-dropdown" style="
+              display:none;position:absolute;top:100%;left:0;right:0;z-index:200;
+              background:#fff;border:1.5px solid var(--accent);border-top:none;
+              border-radius:0 0 var(--radius) var(--radius);
+              max-height:220px;overflow-y:auto;
+              box-shadow:0 4px 16px rgba(0,0,0,0.12)">
+            </div>
+          </div>
           <button type="button" onclick="toggleNewRoute()"
             style="background:#e8f0fe;color:#1a3a5c;border:1.5px solid #bfdbfe;border-radius:var(--radius);padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
             ＋ 新路線
           </button>
           <button type="button" onclick="deleteSelectedRoute()" id="btn-del-route"
-            title="刪除目前選取的行程"
-            style="background:#fff1f2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:var(--radius);padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;display:none">
+            style="display:none;background:#fff1f2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:var(--radius);padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
             🗑 刪除
           </button>
         </div>
+        <!-- 隱藏的實際選取值 -->
+        <input type="hidden" id="f-route-sel" value="">
         <div id="f-route-new-wrap" class="hidden" style="margin-top:6px">
           <div style="display:flex;gap:8px;align-items:center">
             <input type="text" id="f-route-new" class="inp" placeholder="輸入新路線，例：公司→中山路→易增→公司" autocomplete="off" style="flex:1">
@@ -755,20 +770,17 @@ function tog(id){
 }
 
 /* ══════════════════════════════════════════
-   行程下拉選單管理
+   行程搜尋下拉（手機友善）
    ══════════════════════════════════════════ */
+let selectedRoute = '';
 
-// 從 GAS 讀取所有歷史行程並合併到本地清單
-/* 從已載入的 records 提取路線（確保跨裝置同步）*/
 function rebuildRoutesFromRecords(){
   const freq = {};
   records.forEach(r => {
     const rt = String(r.route||'').trim();
     if (rt) freq[rt] = (freq[rt]||0) + 1;
   });
-  // 依頻率排序的雲端路線
   const fromRecords = Object.keys(freq).sort((a,b) => freq[b]-freq[a]);
-  // 保留本機手動新增、但尚未出現在紀錄中的路線（排最後）
   const localOnly = routes.filter(r => r && r.trim() && !fromRecords.includes(r));
   routes = [...fromRecords, ...localOnly];
   lsS(LS.ROUTES, routes);
@@ -780,71 +792,95 @@ async function loadRoutesFromGas(){
   try {
     const data = await api({ action:'getRoutes' });
     if (Array.isArray(data)){
-      // 以 GAS 為主要來源（確保跨裝置一致）
       const gasRoutes = data.map(d => d.route).filter(r => r && r.trim());
-      // 本機新增但尚未同步的路線也保留
       const localOnly = routes.filter(r => r && r.trim() && !gasRoutes.includes(r));
       routes = [...gasRoutes, ...localOnly];
       lsS(LS.ROUTES, routes);
       refreshDL();
     }
-  } catch(e){ /* 靜默失敗，使用本機快取 */ }
+  } catch(e){}
 }
 
 function refreshDL(){
-  const sel = document.getElementById('f-route-sel');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">── 請選擇行程 ──</option>';
-
-  // 過濾純空白、但保留顯示標記讓使用者刪除
-  routes.forEach((r, idx) => {
-    const opt = document.createElement('option');
-    const isEmpty = (!r || r.trim() === '');
-    // 空白路線用特殊 value 標記（__EMPTY__:索引），避免跟「請選擇」混淆
-    opt.value = isEmpty ? `__EMPTY__:${idx}` : r;
-    opt.textContent = isEmpty ? '⚠ （空白行程，請點選後刪除）' : r;
-    if (isEmpty) opt.style.color = '#dc2626';
-    sel.appendChild(opt);
-  });
-
-  // 恢復先前選取值
-  const prev = [...sel.options].find(o => o.value === cur);
-  if (prev) sel.value = cur;
+  const kw = (document.getElementById('f-route-search')||{}).value || '';
+  const dd = document.getElementById('route-dropdown');
+  if (dd && dd.style.display !== 'none') renderRouteDropdown(kw);
 }
 
-function onRouteSelChange(){
-  const val = document.getElementById('f-route-sel').value;
-  const isEmptyRoute = val.startsWith('__EMPTY__:');
+function showRouteDropdown(){
+  renderRouteDropdown(document.getElementById('f-route-search').value||'');
+  document.getElementById('route-dropdown').style.display = 'block';
+  setTimeout(()=>{ document.addEventListener('click', closeRouteDropdownOutside, {once:true}); }, 0);
+}
 
-  // f-route 只記錄真實路線值（空白路線填空字串）
-  document.getElementById('f-route').value = isEmptyRoute ? '' : val;
+function closeRouteDropdownOutside(e){
+  const dd=document.getElementById('route-dropdown');
+  const inp=document.getElementById('f-route-search');
+  if(dd && !dd.contains(e.target) && e.target!==inp) dd.style.display='none';
+}
 
-  // 有選取任何路線（包含空白路線）都顯示刪除按鈕
-  const delBtn = document.getElementById('btn-del-route');
-  if (delBtn) delBtn.style.display = val ? '' : 'none';
-
-  if (val && !isEmptyRoute) {
-    document.getElementById('f-route-new').value = val;
-    document.getElementById('f-route-new-wrap').classList.remove('hidden');
-  } else {
-    cancelNewRoute();
+function onRouteSearch(){
+  const kw = document.getElementById('f-route-search').value.trim();
+  renderRouteDropdown(kw);
+  document.getElementById('route-dropdown').style.display='block';
+  if(kw !== selectedRoute){
+    selectedRoute='';
+    document.getElementById('f-route-sel').value='';
+    document.getElementById('f-route').value='';
+    document.getElementById('btn-del-route').style.display='none';
   }
 }
 
-/* 刪除目前下拉選取的路線 */
+function renderRouteDropdown(kw){
+  const dd = document.getElementById('route-dropdown');
+  if (!dd) return;
+  const filtered = kw
+    ? routes.filter(r => r && r.includes(kw))
+    : routes.filter(r => r && r.trim());
+  if (!filtered.length){
+    dd.innerHTML=`<div style="padding:12px 14px;color:var(--gray-400);font-size:13px">${kw?`找不到含「${esc(kw)}」的行程`:'尚無歷史行程'}</div>`;
+    return;
+  }
+  dd.innerHTML = filtered.map(r=>{
+    const isYi=r.includes('易'), isBiz=r.includes('業務辦公')||r.includes('盤點');
+    const badge=isYi?`<span style="background:#f59e0b;color:#fff;font-size:10px;font-weight:800;padding:1px 4px;border-radius:3px;margin-right:4px">易</span>`
+      :isBiz?`<span style="background:#1d4ed8;color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:3px;margin-right:4px">業務</span>`:'';
+    return `<div onclick="selectRoute('${esc(r)}')"
+      style="padding:11px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;gap:4px"
+      onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background=''">
+      ${badge}${esc(r)}</div>`;
+  }).join('');
+}
+
+function selectRoute(val){
+  selectedRoute=val;
+  document.getElementById('f-route-sel').value=val;
+  document.getElementById('f-route').value=val;
+  document.getElementById('f-route-search').value=val;
+  document.getElementById('route-dropdown').style.display='none';
+  document.getElementById('btn-del-route').style.display=val?'':'none';
+  if(val){
+    document.getElementById('f-route-new').value=val;
+    document.getElementById('f-route-new-wrap').classList.remove('hidden');
+  }
+}
+
+function onRouteSelChange(){
+  const val=document.getElementById('f-route-sel').value;
+  document.getElementById('f-route').value=val;
+}
+
+/* 刪除目前選取的路線 */
 function deleteSelectedRoute(){
-  const val = document.getElementById('f-route-sel').value;
+  const val = selectedRoute || document.getElementById('f-route-sel').value;
   if (!val){ toast('請先選擇要刪除的行程'); return; }
-
-  const isEmptyRoute = val.startsWith('__EMPTY__:');
-  const displayName  = isEmptyRoute ? '（空白行程）' : val;
-
   pendingDeleteId = '__ROUTE__:' + val;
   document.getElementById('del-info').innerHTML =
     `<div style="font-size:15px;margin-bottom:6px">🗑 刪除行程記憶</div>
-     <div style="font-size:13px;color:var(--gray-700);background:#f8fafc;padding:8px 12px;border-radius:8px;word-break:break-all;margin-bottom:6px">${esc(displayName)}</div>
+     <div style="font-size:13px;color:var(--gray-700);background:#f8fafc;padding:8px 12px;border-radius:8px;word-break:break-all;margin-bottom:6px">${esc(val)}</div>
      <div style="font-size:12px;color:var(--gray-400)">僅從行程清單中移除，不影響已儲存的出車紀錄</div>`;
   document.getElementById('del-modal').classList.remove('hidden');
+
 }
 
 function toggleNewRoute(){
@@ -1023,6 +1059,11 @@ function clearForm(){
   ['f-km-e','f-route','f-tp','f-ta','f-fl','f-fc','f-oc','f-notes']
     .forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-route-sel').value = '';
+  const rs = document.getElementById('f-route-search');
+  if (rs) rs.value = '';
+  selectedRoute = '';
+  const delBtn = document.getElementById('btn-del-route');
+  if (delBtn) delBtn.style.display = 'none';
   cancelNewRoute();
   document.getElementById('f-ot').value='';
   cbState={nl:false,nd:false,gc:false};
@@ -1258,7 +1299,7 @@ function _render(){
 
   vr.forEach(r=>{
     const hasYi  = r.route && String(r.route).includes('易');
-    const hasBiz = r.route && String(r.route).includes('業務辦公');
+    const hasBiz = r.route && (String(r.route).includes('業務辦公') || String(r.route).includes('盤點'));
     const tr = document.createElement('tr');
     if (hasYi)  tr.style.cssText = 'background:#fffbeb;border-left:3px solid #f59e0b';
     if (hasBiz) tr.style.cssText = 'background:#eff6ff;border-left:3px solid #1d4ed8';
@@ -1267,7 +1308,7 @@ function _render(){
     totFuel+=+r.fuelL||0; totFuelCost+=+r.fuelCost||0; totOther+=+r.otherCost||0;
     if(r.gcalSynced) totSynced++;
     const routeHtml = hasBiz
-      ? `<span class="biz-badge">業務辦公</span>${esc(r.route)}`
+      ? `<span class="biz-badge">${String(r.route).includes('盤點')?'盤點':'業務辦公'}</span>${esc(r.route)}`
       : hasYi
         ? `<span class="yi-badge">易</span>${esc(r.route)}`
         : (esc(r.route)||'—');
