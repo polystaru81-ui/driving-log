@@ -314,6 +314,11 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
             style="background:#e8f0fe;color:#1a3a5c;border:1.5px solid #bfdbfe;border-radius:var(--radius);padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
             ＋ 新路線
           </button>
+          <button type="button" onclick="deleteSelectedRoute()" id="btn-del-route"
+            title="刪除目前選取的行程"
+            style="background:#fff1f2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:var(--radius);padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;display:none">
+            🗑 刪除
+          </button>
         </div>
         <div id="f-route-new-wrap" class="hidden" style="margin-top:6px">
           <div style="display:flex;gap:8px;align-items:center">
@@ -796,13 +801,29 @@ function onRouteSelChange(){
   const val = document.getElementById('f-route-sel').value;
   document.getElementById('f-route').value = val;
 
+  // 有選到路線才顯示刪除按鈕
+  const delBtn = document.getElementById('btn-del-route');
+  if (delBtn) delBtn.style.display = (val && val !== '') ? '' : 'none';
+
   if (val) {
-    // 將選取的行程同步到新行程輸入框，方便複製修改後存成新行程
     document.getElementById('f-route-new').value = val;
     document.getElementById('f-route-new-wrap').classList.remove('hidden');
   } else {
     cancelNewRoute();
   }
+}
+
+/* 刪除目前下拉選取的路線 */
+function deleteSelectedRoute(){
+  const val = document.getElementById('f-route-sel').value;
+  if (!val){ toast('請先選擇要刪除的行程'); return; }
+
+  pendingDeleteId = '__ROUTE__:' + val;
+  document.getElementById('del-info').innerHTML =
+    `<div style="font-size:15px;margin-bottom:6px">🗑 刪除行程記憶</div>
+     <div style="font-size:13px;color:var(--gray-700);background:#f8fafc;padding:8px 12px;border-radius:8px;word-break:break-all;margin-bottom:6px">${esc(val)}</div>
+     <div style="font-size:12px;color:var(--gray-400)">僅從行程清單中移除，不影響已儲存的出車紀錄</div>`;
+  document.getElementById('del-modal').classList.remove('hidden');
 }
 
 function toggleNewRoute(){
@@ -1000,8 +1021,14 @@ async function confirmDelete(){
   closeDelModal();
   if (!id) return;
 
-  if (id === '__ALL__'){
-    // 清除本車牌全部
+  if (String(id).startsWith('__ROUTE__:')){
+    // 刪除行程記憶
+    const routeVal = id.replace('__ROUTE__:', '');
+    deleteRoute(routeVal);
+    document.getElementById('btn-del-route').style.display = 'none';
+
+  } else if (id === '__ALL__'){
+    // 清除本車牌全部紀錄
     const vr = records.filter(r=>r.vehicle===curVeh);
     records = records.filter(r=>r.vehicle!==curVeh);
     lsS(LS.REC,records); render(); toast(`已清除 ${vr.length} 筆紀錄`);
@@ -1010,7 +1037,7 @@ async function confirmDelete(){
         await api({ action:'delete', id:r.id }).catch(()=>{});
     }
   } else {
-    // 單筆刪除
+    // 單筆刪除紀錄
     records = records.filter(r=>r.id!==String(id));
     lsS(LS.REC,records); render(); toast('🗑 已刪除');
     if (GAS_URL)
