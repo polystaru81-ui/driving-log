@@ -272,7 +272,7 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
     <div class="panel-hdr">✏️ 填寫新紀錄</div>
     <div class="form-body">
 
-      <div class="frow c3">
+      <div style="display:grid;grid-template-columns:1fr 72px 1fr;gap:10px">
         <div class="fgroup">
           <label class="flabel">日期</label>
           <input type="date" id="f-date" class="inp mono" style="color:var(--navy);font-weight:600">
@@ -280,7 +280,7 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
         <div class="fgroup">
           <label class="flabel">星期</label>
           <input type="text" id="f-weekday" class="inp" readonly
-            style="background:#eff6ff;color:var(--navy);font-weight:700;text-align:center;cursor:default">
+            style="background:#eff6ff;color:var(--navy);font-weight:700;text-align:center;cursor:default;padding-left:4px;padding-right:4px">
         </div>
         <div class="fgroup">
           <label class="flabel">出車類別</label>
