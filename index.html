@@ -90,6 +90,7 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 .frow { display: grid; gap: 10px; }
 .frow.c2 { grid-template-columns: 1fr 1fr; }
 .frow.c3 { grid-template-columns: 1fr 1fr 1fr; }
+.frow.c4 { grid-template-columns: repeat(4, 1fr); }
 /* c2-fixed：手機上也保持雙欄（時間、金額等短欄位）*/
 .frow.c2-fixed { grid-template-columns: 1fr 1fr !important; }
 .fgroup { display: flex; flex-direction: column; gap: 4px; }
@@ -211,6 +212,7 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
 @media (max-width: 680px) {
   .stats-bar { grid-template-columns: 1fr 1fr; }
   .frow.c3 { grid-template-columns: 1fr 1fr; }
+  .frow.c4 { grid-template-columns: 1fr 1fr; }
   .frow.c2 { grid-template-columns: 1fr; }
   .gcal-strip { flex-direction: column; align-items: flex-start; }
   .header-name { font-size: 16px; }
@@ -334,24 +336,27 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
         </div>
       </div>
 
-      <div class="frow c2-fixed">
+      <!-- 時間（4欄，每欄25%寬）-->
+      <div class="frow c4">
         <div class="fgroup">
-          <label class="flabel">接送時間 <span class="hint">（HH:MM）</span></label>
+          <label class="flabel">接送時間 <span class="hint">HH:MM</span></label>
           <input type="text" id="f-tp" class="inp mono" placeholder="08:00"
                  maxlength="5" inputmode="numeric"
                  oninput="autoColon(this)" autocomplete="off">
         </div>
         <div class="fgroup">
-          <label class="flabel">下班時間 <span class="hint">（HH:MM）</span></label>
+          <label class="flabel">下班時間 <span class="hint">HH:MM</span></label>
           <input type="text" id="f-ta" class="inp mono" placeholder="17:00"
                  maxlength="5" inputmode="numeric"
                  oninput="autoColon(this)" autocomplete="off">
         </div>
+        <div></div><div></div>
       </div>
 
       <div class="divider"></div>
 
-      <div class="frow c2-fixed">
+      <!-- 加油 + 費用（同一排，4欄）-->
+      <div class="frow c4">
         <div class="fgroup">
           <label class="flabel">加油公升數</label>
           <div class="sfx">
@@ -366,16 +371,6 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
             <input type="number" id="f-fc" class="inp mono" placeholder="0">
           </div>
         </div>
-      </div>
-
-      <!-- 加油發票資訊（加油公升數下方）-->
-      <div id="invoice-hint-row" class="hidden"
-        style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;font-size:12px;color:#1d4ed8;font-weight:600">
-        ⛽ 加油發票開立：<span id="invoice-co"></span>
-        <span style="margin-left:12px">統編：<span id="invoice-tax" style="font-family:var(--mono);font-weight:700"></span></span>
-      </div>
-
-      <div class="frow c2-fixed">
         <div class="fgroup">
           <label class="flabel">其他費用類型</label>
           <select id="f-ot" class="inp">
@@ -391,6 +386,13 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
             <input type="number" id="f-oc" class="inp mono" placeholder="0">
           </div>
         </div>
+      </div>
+
+      <!-- 加油發票資訊 -->
+      <div id="invoice-hint-row" class="hidden"
+        style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;font-size:12px;color:#1d4ed8;font-weight:600">
+        ⛽ 加油發票開立：<span id="invoice-co"></span>
+        <span style="margin-left:12px">統編：<span id="invoice-tax" style="font-family:var(--mono);font-weight:700"></span></span>
       </div>
 
       <div class="divider"></div>
