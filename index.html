@@ -90,6 +90,8 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 .frow { display: grid; gap: 10px; }
 .frow.c2 { grid-template-columns: 1fr 1fr; }
 .frow.c3 { grid-template-columns: 1fr 1fr 1fr; }
+/* c2-fixed：手機上也保持雙欄（時間、金額等短欄位）*/
+.frow.c2-fixed { grid-template-columns: 1fr 1fr !important; }
 .fgroup { display: flex; flex-direction: column; gap: 4px; }
 .flabel { font-size: 10px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .06em; }
 .flabel .hint { font-size: 10px; color: var(--gray-400); font-weight: 400; text-transform: none; letter-spacing: 0; }
@@ -225,19 +227,12 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
   <div class="header-inner">
     <div class="header-left">
       <div class="header-label">車輛行車管理系統</div>
-      <div class="header-name" id="header-plate">CBX-8595 <span>行車紀錄表</span></div>
+      <div class="header-name">行車紀錄表 <span id="header-company">易增股份有限公司</span></div>
     </div>
     <div class="header-right">
       <div class="conn-pill">
         <div class="conn-dot" id="conn-dot"></div>
         <span class="conn-text" id="conn-text">未連線</span>
-      </div>
-      <div class="vtabs" id="vtabs">
-        <button class="vtab active" data-v="CBX-8595">CBX-8595</button>
-        <button class="vtab" data-v="BQD-8595">BQD-8595</button>
-        <button class="vtab" data-v="BFW-8595">BFW-8595</button>
-        <button class="vtab" data-v="司機車">司機車</button>
-        <button class="vtab all" data-v="__ALL__">全部</button>
       </div>
     </div>
   </div>
@@ -247,27 +242,7 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
 
   <!-- 設定 Banner 已移除：GAS 網址直接寫在程式碼內，自動連線 -->
 
-  <!-- Stats -->
-  <div class="stats-bar">
-    <div class="stat-card"><div class="stat-icon">🛣️</div><div class="stat-label">累積里程</div><div class="stat-val" id="s-km">0 km</div></div>
-    <div class="stat-card"><div class="stat-icon">⛽</div><div class="stat-label">加油量</div><div class="stat-val" id="s-fuel">0.00 L</div></div>
-    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-label">油費合計</div><div class="stat-val" id="s-fuelcost">NT$0</div></div>
-    <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-label">已同步行事曆</div><div class="stat-val" id="s-synced" style="color:var(--gcal)">0 筆</div></div>
-  </div>
-
-  <!-- GCal strip -->
-  <div class="gcal-strip">
-    <div>
-      <div class="gcal-strip-info">📅 Google 行事曆整合（考勤紀錄）</div>
-      <div class="gcal-strip-sub">行程含「易」自動同步 ・ 接送→下班時間自動成為事件時段</div>
-    </div>
-    <div class="gcal-strip-btns">
-      <button class="btn btn-gcal-o" onclick="openSyncModal(false)" style="font-size:13px;padding:7px 13px;">📋 同步未同步紀錄</button>
-      <button class="btn btn-gcal" onclick="openSyncModal(true)" style="font-size:13px;padding:7px 13px;">📅 全部同步</button>
-    </div>
-  </div>
-
-  <!-- Form -->
+  <!-- Form（移至最上方）-->
   <div class="form-panel" id="form-panel">
     <div class="panel-hdr">✏️ 填寫新紀錄</div>
     <div class="form-body">
@@ -359,15 +334,15 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
         </div>
       </div>
 
-      <div class="frow c2">
+      <div class="frow c2-fixed">
         <div class="fgroup">
-          <label class="flabel">接送時間 <span class="hint">（格式 HH:MM，例：08:30）</span></label>
+          <label class="flabel">接送時間 <span class="hint">（HH:MM）</span></label>
           <input type="text" id="f-tp" class="inp mono" placeholder="08:00"
                  maxlength="5" inputmode="numeric"
                  oninput="autoColon(this)" autocomplete="off">
         </div>
         <div class="fgroup">
-          <label class="flabel">下班時間 <span class="hint">（格式 HH:MM，例：17:30）</span></label>
+          <label class="flabel">下班時間 <span class="hint">（HH:MM）</span></label>
           <input type="text" id="f-ta" class="inp mono" placeholder="17:00"
                  maxlength="5" inputmode="numeric"
                  oninput="autoColon(this)" autocomplete="off">
@@ -376,9 +351,9 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
 
       <div class="divider"></div>
 
-      <div class="frow c2">
+      <div class="frow c2-fixed">
         <div class="fgroup">
-          <label class="flabel">加油數量</label>
+          <label class="flabel">加油公升數</label>
           <div class="sfx">
             <input type="number" id="f-fl" class="inp mono" placeholder="0">
             <span class="sx">L</span>
@@ -393,7 +368,14 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
         </div>
       </div>
 
-      <div class="frow c2">
+      <!-- 加油發票資訊（加油公升數下方）-->
+      <div id="invoice-hint-row" class="hidden"
+        style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;font-size:12px;color:#1d4ed8;font-weight:600">
+        ⛽ 加油發票開立：<span id="invoice-co"></span>
+        <span style="margin-left:12px">統編：<span id="invoice-tax" style="font-family:var(--mono);font-weight:700"></span></span>
+      </div>
+
+      <div class="frow c2-fixed">
         <div class="fgroup">
           <label class="flabel">其他費用類型</label>
           <select id="f-ot" class="inp">
@@ -446,25 +428,58 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
       <div class="submit-row">
         <button class="btn btn-navy" id="add-btn" onclick="addRecord()">✚ 新增紀錄</button>
         <button class="btn btn-ghost" onclick="clearForm()">清除</button>
+        <button class="btn btn-ghost hidden" id="cancel-edit-btn" onclick="cancelEdit()"
+          style="color:#dc2626;border-color:#fca5a5">✕ 取消編輯</button>
         <span id="form-msg" style="font-size:13px;color:var(--red)"></span>
       </div>
+    </div>
+  </div>
+
+  <!-- Stats（表單下方）-->
+  <div class="stats-bar">
+    <div class="stat-card"><div class="stat-icon">🛣️</div><div class="stat-label">累積里程</div><div class="stat-val" id="s-km">0 km</div></div>
+    <div class="stat-card"><div class="stat-icon">⛽</div><div class="stat-label">加油量</div><div class="stat-val" id="s-fuel">0.00 L</div></div>
+    <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-label">油費合計</div><div class="stat-val" id="s-fuelcost">NT$0</div></div>
+    <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-label">已同步行事曆</div><div class="stat-val" id="s-synced" style="color:var(--gcal)">0 筆</div></div>
+  </div>
+
+  <!-- GCal strip -->
+  <div class="gcal-strip">
+    <div>
+      <div class="gcal-strip-info">📅 Google 行事曆整合（考勤紀錄）</div>
+      <div class="gcal-strip-sub">行程含「易」自動同步 ・ 接送→下班時間自動成為事件時段</div>
+    </div>
+    <div class="gcal-strip-btns">
+      <button class="btn btn-gcal-o" onclick="openSyncModal(false)" style="font-size:13px;padding:7px 13px;">📋 同步未同步紀錄</button>
+      <button class="btn btn-gcal" onclick="openSyncModal(true)" style="font-size:13px;padding:7px 13px;">📅 全部同步</button>
     </div>
   </div>
 
   <!-- Records -->
   <div class="rec-panel">
     <div class="rec-hdr">
-      <div class="rec-title">
-        📋 歷史紀錄
-        <span class="rec-count" id="rec-count">（0 筆）</span>
-        <span class="mgr-badge hidden" id="mgr-badge">管理者全覽</span>
-      </div>
-      <div class="rec-hdr-btns">
-        <button class="btn btn-ghost" onclick="loadFromGas()" style="font-size:12px;padding:6px 11px;">🔄 從雲端重新整理</button>
-        <button class="btn btn-ghost" onclick="openReportModal()" style="font-size:12px;padding:6px 11px;background:#eff6ff;color:#1a3a5c;border-color:#bfdbfe;">📊 產生月報表</button>
-        <button class="btn btn-gcal-o" onclick="openSyncModal(false)" style="font-size:12px;padding:6px 11px;">📅 批量同步</button>
-        <button class="btn btn-green" onclick="exportCSV()" style="font-size:12px;padding:6px 11px;">📥 匯出 CSV</button>
-        <button class="btn btn-ghost" onclick="clearAllConfirm()" id="clear-btn" style="font-size:12px;padding:6px 11px;">🗑 清除全部</button>
+      <div style="display:flex;flex-direction:column;gap:8px;width:100%">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div class="rec-title">
+            📋 歷史紀錄
+            <span class="rec-count" id="rec-count">（0 筆）</span>
+          </div>
+          <div class="rec-hdr-btns">
+            <button class="btn btn-ghost" onclick="loadFromGas()" style="font-size:12px;padding:6px 11px;">🔄 重新整理</button>
+            <button class="btn btn-ghost" onclick="openReportModal()" style="font-size:12px;padding:6px 11px;background:#eff6ff;color:#1a3a5c;border-color:#bfdbfe;">📊 月報表</button>
+            <button class="btn btn-gcal-o" onclick="openSyncModal(false)" style="font-size:12px;padding:6px 11px;">📅 批量同步</button>
+            <button class="btn btn-green" onclick="exportCSV()" style="font-size:12px;padding:6px 11px;">📥 匯出 CSV</button>
+            <button class="btn btn-ghost" onclick="clearAllConfirm()" id="clear-btn" style="font-size:12px;padding:6px 11px;">🗑 清除</button>
+          </div>
+        </div>
+        <!-- 車牌篩選（移到紀錄區標題列）-->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;padding-bottom:4px" id="vtabs">
+          <button class="vtab" data-v="__ALL__" style="font-size:11px;padding:4px 10px">全部車輛</button>
+          <button class="vtab" data-v="CBX-8595" style="font-size:11px;padding:4px 10px">CBX-8595</button>
+          <button class="vtab" data-v="BQD-8595" style="font-size:11px;padding:4px 10px">BQD-8595</button>
+          <button class="vtab" data-v="BFW-8595" style="font-size:11px;padding:4px 10px">BFW-8595</button>
+          <button class="vtab" data-v="司機車" style="font-size:11px;padding:4px 10px">司機車</button>
+        </div>
       </div>
     </div>
     <div class="table-wrap">
@@ -572,8 +587,17 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
 const WD = ['週日','週一','週二','週三','週四','週五','週六'];
 const LS = { GAS:'drv_gas', REC:'drv_rec', ROUTES:'drv_routes', KM:'drv_km', VEH:'drv_veh' };
 
-let curVeh  = lsG(LS.VEH) || 'CBX-8595';
+let curVeh  = '__ALL__'; // 預設顯示全部車輛紀錄
 let records = lsG(LS.REC) || [];
+let editingId = null; // 編輯中的紀錄 ID
+
+// 各車牌對應公司與發票資訊
+const VEHICLE_INFO = {
+  'CBX-8595': { company:'政星企業有限公司', invoiceCo:'易增股份有限公司', taxId:'86766432' },
+  'BQD-8595': { company:'政星企業有限公司', invoiceCo:'政星企業有限公司', taxId:'22225186' },
+  'BFW-8595': { company:'星潤實業有限公司', invoiceCo:'易增股份有限公司', taxId:'86766432' },
+  '司機車':   { company:'', invoiceCo:'', taxId:'' },
+};
 let routes  = lsG(LS.ROUTES) || [];
 let lastKm  = lsG(LS.KM) || {};
 let cbState = { nl:false, nd:false, gc:false };
@@ -588,11 +612,24 @@ function lsS(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} }
    ══════════════════════════════════════════════ */
 async function api(params, timeout) {
   timeout = timeout || 20000;
-  const url = '/api/gas-proxy?' + new URLSearchParams(params).toString();
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeout);
   try {
-    const res = await fetch(url, { signal: ctrl.signal });
+    // 寫入操作（save/update/delete/markSynced）用 POST 避免 URL 長度限制
+    const writeActions = ['save','update','delete','markSynced','genReport'];
+    const isWrite = writeActions.includes(params.action);
+    let res;
+    if (isWrite) {
+      res = await fetch('/api/gas-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+        signal: ctrl.signal
+      });
+    } else {
+      const url = '/api/gas-proxy?' + new URLSearchParams(params).toString();
+      res = await fetch(url, { signal: ctrl.signal });
+    }
     if (!res.ok) throw new Error('伺服器錯誤 ' + res.status);
     return await res.json();
   } catch (e) {
@@ -616,6 +653,7 @@ window.addEventListener('DOMContentLoaded', () => {
   lsS(LS.ROUTES, routes);
 
   setToday(); setVeh(curVeh); refreshDL(); showLoadingRecords();
+  updateInvoiceInfo(document.getElementById('f-vehicle').value);
 
   document.getElementById('f-date').addEventListener('change', syncDay);
   document.getElementById('f-vehicle').addEventListener('change', onVehChange);
@@ -725,20 +763,9 @@ function fmtD(d){ return String(d).replace(/-/g,'/'); }
 function setVeh(v){
   curVeh = v; lsS(LS.VEH, v);
   document.querySelectorAll('.vtab').forEach(b => b.classList.toggle('active', b.dataset.v===v));
-  const isAll = v==='__ALL__';
-  document.getElementById('header-plate').innerHTML = isAll
-    ? `全部車輛 <span>管理者全覽</span>` : `${v} <span>行車紀錄表</span>`;
-  document.getElementById('form-panel').classList.toggle('hidden', isAll);
-  document.getElementById('clear-btn').classList.toggle('hidden', isAll);
-  document.getElementById('mgr-badge').classList.toggle('hidden', !isAll);
-  if (!isAll){
-    document.getElementById('f-vehicle').value = v;
-    showKm(v!=='司機車');
-    if (v!=='司機車'){
-      document.getElementById('f-km-s').value = lastKm[v] ?? '';
-      document.getElementById('f-km-e').value = ''; calcKm();
-    }
-  }
+  // 表單永遠顯示，車牌篩選只影響紀錄表
+  const mgr = document.getElementById('mgr-badge');
+  if (mgr) mgr.classList.toggle('hidden', v!=='__ALL__');
   render();
 }
 
@@ -748,6 +775,26 @@ function onVehChange(){
   if (v!=='司機車'){
     document.getElementById('f-km-s').value = lastKm[v] ?? '';
     document.getElementById('f-km-e').value = ''; calcKm();
+  }
+  updateInvoiceInfo(v);
+}
+
+function updateInvoiceInfo(v){
+  const info = VEHICLE_INFO[v] || {};
+  // 更新 header 公司名稱
+  const hc = document.getElementById('header-company');
+  if (hc) hc.textContent = info.company || '易增股份有限公司';
+  // 更新發票資訊藍色方塊
+  const row  = document.getElementById('invoice-hint-row');
+  const box  = document.getElementById('invoice-info');
+  if (info.invoiceCo){
+    document.getElementById('invoice-co').textContent  = info.invoiceCo;
+    document.getElementById('invoice-tax').textContent = info.taxId;
+    if (row) row.classList.remove('hidden');
+    if (box) box.classList.remove('hidden');
+  } else {
+    if (row) row.classList.add('hidden');
+    if (box) box.classList.add('hidden');
   }
 }
 function showKm(show){ document.getElementById('km-section').classList.toggle('hidden', !show); }
@@ -972,84 +1019,144 @@ async function addRecord(){
   const kS  = drv ? '' : document.getElementById('f-km-s').value;
   const kE  = drv ? '' : document.getElementById('f-km-e').value;
 
-  // 里程驗證（司機車不需要）
   if (!drv){
     if (kS===''||kE===''){ showMsg('請填入起始與結束里程'); return; }
     if (+kE < +kS){ showMsg('結束里程不可小於起始里程，總里程不可為負數'); return; }
   }
 
-  const tot = (!drv && kS!=='' && kE!=='') ? Math.max(0,+kE-+kS) : '';
+  const tot   = (!drv && kS!=='' && kE!=='') ? Math.max(0,+kE-+kS) : '';
   const route = document.getElementById('f-route').value.trim();
-  const tp = parseTime(document.getElementById('f-tp').value);
-  const ta = parseTime(document.getElementById('f-ta').value);
+  const tp    = parseTime(document.getElementById('f-tp').value);
+  const ta    = parseTime(document.getElementById('f-ta').value);
 
-  // 必填驗證
   if (!route){ showMsg('請填入行程'); return; }
-  if (!tp){ showMsg('請填入接送時間（格式 HH:MM）'); return; }
-  if (!ta){ showMsg('請填入下班時間（格式 HH:MM）'); return; }
+  if (!tp){    showMsg('請填入接送時間（格式 HH:MM）'); return; }
+  if (!ta){    showMsg('請填入下班時間（格式 HH:MM）'); return; }
+
+  const isEdit = !!editingId;
+  const origRec = isEdit ? records.find(r => String(r.id) === String(editingId)) : null;
 
   const rec = {
-    id: String(Date.now()),
+    id: isEdit ? String(editingId) : String(Date.now()),
     date, weekday: wdOf(date),
     vehicle:v, route, kmStart:kS, kmEnd:kE, totalKm:tot,
     timePick: tp, timeArrive: ta,
-    fuelL:      document.getElementById('f-fl').value,
-    fuelCost:   document.getElementById('f-fc').value,
-    otherType:  document.getElementById('f-ot').value,
-    otherCost:  document.getElementById('f-oc').value,
+    fuelL:     document.getElementById('f-fl').value,
+    fuelCost:  document.getElementById('f-fc').value,
+    otherType: document.getElementById('f-ot').value,
+    otherCost: document.getElementById('f-oc').value,
     noLunch: cbState.nl, noDinner: cbState.nd,
     notes: document.getElementById('f-notes').value.trim(),
-    gcalSynced: false,
+    gcalSynced: origRec ? origRec.gcalSynced : false,
   };
 
   addRoute(route);
   if (!drv && kE!=='') { lastKm[v]=+kE; lsS(LS.KM,lastKm); }
 
-  /* 1. 先存本機快取 */
-  records.push(rec); lsS(LS.REC, records);
+  /* 1. 本機更新 */
+  if (isEdit){
+    records = records.map(r => String(r.id)===String(editingId) ? rec : r);
+  } else {
+    records.push(rec);
+  }
+  lsS(LS.REC, records);
 
-  /* 2. 等待雲端同步確認（讓使用者知道是否成功）*/
+  /* 2. 等待雲端確認 */
   const addBtn = document.getElementById('add-btn');
   addBtn.disabled = true;
   addBtn.textContent = '⏳ 同步中...';
-  showStatus('正在儲存到 Google Sheets...');
+  showStatus(isEdit ? '正在更新 Google Sheets...' : '正在儲存到 Google Sheets...');
 
   try {
     if (GAS_URL){
-      const res = await api({ action:'save', data: JSON.stringify(rec) });
-      if (res && res.success === false){
-        throw new Error(res.error || '儲存失敗');
-      }
+      const action = isEdit ? 'update' : 'save';
+      const res = await api({ action, data: JSON.stringify(rec) });
+      if (res && res.success === false) throw new Error(res.error || '儲存失敗');
       setConn(true);
     }
-
-    /* 3. 成功 → 清除表單、更新畫面 */
+    if (isEdit){ editingId=null; document.getElementById('cancel-edit-btn').classList.add('hidden'); }
     clearForm(); render();
-
-    /* 4. Google 行事曆同步 */
     const hasYi = route.includes('易');
     if (hasYi || cbState.gc){
       openGCal(buildGCalURL(rec));
-      rec.gcalSynced = true; lsS(LS.REC, records); render();
+      rec.gcalSynced=true; lsS(LS.REC,records); render();
       if (GAS_URL) api({ action:'markSynced', id:rec.id }).catch(()=>{});
       toast(hasYi ? '📅 含「易」，已儲存並同步行事曆' : '✓ 已儲存並開啟行事曆');
     } else {
-      toast('✅ 已成功同步到 Google Sheets');
+      toast(isEdit ? '✅ 紀錄已更新' : '✅ 已成功同步到 Google Sheets');
     }
-
   } catch(e){
     setConn(false, e.message);
-    // 失敗時資料仍保留在本機，告知使用者
     render();
-    toast('⚠ 雲端同步失敗：' + e.message + '（已暫存本機，請稍後點「重新整理」）');
+    toast('⚠ 同步失敗：' + e.message);
   } finally {
     addBtn.disabled = false;
-    addBtn.textContent = '✚ 新增紀錄';
+    addBtn.textContent = isEdit ? '💾 更新紀錄' : '✚ 新增紀錄';
+    addBtn.style.background = isEdit ? '#059669' : '';
     hideStatus();
   }
 }
 
 /* Clear form */
+/* ══ 編輯現有紀錄 ══ */
+function editRecord(id){
+  const r = records.find(x => String(x.id) === String(id));
+  if (!r) return;
+  editingId = id;
+
+  // 填入表單
+  document.getElementById('f-date').value    = r.date;
+  syncDay();
+  document.getElementById('f-vehicle').value = r.vehicle;
+  showKm(r.vehicle !== '司機車');
+  updateInvoiceInfo(r.vehicle);
+  document.getElementById('f-km-s').value    = r.kmStart ?? '';
+  document.getElementById('f-km-e').value    = r.kmEnd   ?? '';
+  calcKm();
+
+  // 行程搜尋框
+  const rs = document.getElementById('f-route-search');
+  if (rs) rs.value = r.route || '';
+  document.getElementById('f-route-sel').value = r.route || '';
+  document.getElementById('f-route').value     = r.route || '';
+  selectedRoute = r.route || '';
+
+  document.getElementById('f-tp').value    = r.timePick   || '';
+  document.getElementById('f-ta').value    = r.timeArrive || '';
+  document.getElementById('f-fl').value    = r.fuelL      || '';
+  document.getElementById('f-fc').value    = r.fuelCost   || '';
+  document.getElementById('f-ot').value    = r.otherType  || '';
+  document.getElementById('f-oc').value    = r.otherCost  || '';
+  document.getElementById('f-notes').value = r.notes      || '';
+
+  // 勾選框
+  cbState.nl = !!r.noLunch;  tog_set('nl', cbState.nl);
+  cbState.nd = !!r.noDinner; tog_set('nd', cbState.nd);
+
+  // 切換按鈕
+  document.getElementById('add-btn').textContent   = '💾 更新紀錄';
+  document.getElementById('add-btn').style.background = '#059669';
+  document.getElementById('cancel-edit-btn').classList.remove('hidden');
+
+  // 捲動到表單
+  document.getElementById('form-panel').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function cancelEdit(){
+  editingId = null;
+  document.getElementById('add-btn').textContent     = '✚ 新增紀錄';
+  document.getElementById('add-btn').style.background = '';
+  document.getElementById('cancel-edit-btn').classList.add('hidden');
+  clearForm();
+}
+
+// 設定核取框狀態的輔助函式
+function tog_set(id, val){
+  cbState[id] = val;
+  const el = document.getElementById('cb-'+id);
+  if (el) el.className = 'cb-box' + (val ? ' on' : '');
+}
+
 function clearForm(){
   setToday();
   const v = curVeh==='__ALL__'?'CBX-8595':curVeh;
@@ -1336,7 +1443,11 @@ function _render(){
       <td>${mealHtml}</td>
       <td style="max-width:90px;overflow:hidden;text-overflow:ellipsis" title="${esc(r.notes)}">${esc(r.notes)||'—'}</td>
       <td>${gcalHtml}</td>
-      <td style="padding:8px 10px"><button class="del-btn" onclick="deleteRecord('${r.id}')">🗑 刪除</button></td>`;
+      <td style="padding:8px 10px;white-space:nowrap">
+        <button onclick="editRecord('${r.id}')"
+          style="background:#eff6ff;color:#1a3a5c;border:1.5px solid #bfdbfe;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px">✏️ 編輯</button>
+        <button class="del-btn" onclick="deleteRecord('${r.id}')">🗑 刪除</button>
+      </td>`;
     frag.appendChild(tr);
   });
 
