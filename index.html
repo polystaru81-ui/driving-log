@@ -221,6 +221,13 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
   .stats-bar { grid-template-columns: 1fr; }
   .vtab { font-size: 11px; padding: 4px 9px; }
 }
+@media (max-width: 680px) {
+  /* 行程輸入框：手機版改為獨立一行，欄位加大方便司機輸入 */
+  .route-input-row { flex-direction: column; align-items: stretch !important; }
+  .route-input-row > div:first-child { min-width: 100% !important; flex: 1 1 100% !important; }
+  .route-input-row #f-route-search { font-size: 16px; padding: 12px 12px; height: 46px; }
+  .route-input-row button { width: 100%; padding: 11px 14px; font-size: 14px; }
+}
 </style>
 </head>
 <body>
@@ -270,7 +277,7 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
 
       <div class="fgroup">
         <label class="flabel">行程 <span class="hint">（輸入關鍵字搜尋・含「易」自動同步行事曆）</span></label>
-        <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">
+        <div class="route-input-row" style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">
           <!-- 搜尋輸入框 -->
           <div style="flex:1;min-width:160px;position:relative">
             <input type="text" id="f-route-search" class="inp"
@@ -1171,6 +1178,50 @@ function editRecord(id){
   document.getElementById('form-panel').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
+function duplicateRecord(id){
+  const r = records.find(x => String(x.id) === String(id));
+  if (!r) return;
+  editingId = null; // 保持「新增」狀態，儲存時會建立新紀錄，不會覆蓋原紀錄
+
+  // 填入表單（與編輯相同，但不綁定原紀錄 id）
+  document.getElementById('f-date').value    = r.date;
+  syncDay();
+  document.getElementById('f-vehicle').value = r.vehicle;
+  showKm(r.vehicle !== '司機車');
+  updateInvoiceInfo(r.vehicle);
+  document.getElementById('f-km-s').value    = r.kmStart ?? '';
+  document.getElementById('f-km-e').value    = r.kmEnd   ?? '';
+  calcKm();
+
+  // 行程搜尋框
+  const rs = document.getElementById('f-route-search');
+  if (rs) rs.value = r.route || '';
+  document.getElementById('f-route-sel').value = r.route || '';
+  document.getElementById('f-route').value     = r.route || '';
+  selectedRoute = r.route || '';
+
+  document.getElementById('f-tp').value    = r.timePick   || '';
+  document.getElementById('f-ta').value    = r.timeArrive || '';
+  document.getElementById('f-fl').value    = r.fuelL      || '';
+  document.getElementById('f-fc').value    = r.fuelCost   || '';
+  document.getElementById('f-ot').value    = r.otherType  || '';
+  document.getElementById('f-oc').value    = r.otherCost  || '';
+  document.getElementById('f-notes').value = r.notes      || '';
+
+  // 勾選框
+  cbState.nl = !!r.noLunch;  tog_set('nl', cbState.nl);
+  cbState.nd = !!r.noDinner; tog_set('nd', cbState.nd);
+
+  // 確保按鈕維持「新增」樣式（而非「更新」）
+  document.getElementById('add-btn').textContent      = '✚ 新增紀錄';
+  document.getElementById('add-btn').style.background = '';
+  document.getElementById('cancel-edit-btn').classList.add('hidden');
+
+  // 捲動到表單並提示
+  document.getElementById('form-panel').scrollIntoView({ behavior:'smooth', block:'start' });
+  toast('📋 已複製到表單，請確認日期／里程後儲存');
+}
+
 function cancelEdit(){
   editingId = null;
   document.getElementById('add-btn').textContent     = '✚ 新增紀錄';
@@ -1500,6 +1551,8 @@ function _render(){
       <td style="padding:8px 10px;white-space:nowrap">
         <button onclick="editRecord('${r.id}')"
           style="background:#eff6ff;color:#1a3a5c;border:1.5px solid #bfdbfe;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px">✏️</button>
+        <button onclick="duplicateRecord('${r.id}')" title="複製此筆紀錄到表單"
+          style="background:#f0fdf4;color:#059669;border:1.5px solid #86efac;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px">📋</button>
         <button class="del-btn" onclick="deleteRecord('${r.id}')">🗑</button>
       </td>`;
     frag.appendChild(tr);
