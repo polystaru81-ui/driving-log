@@ -824,13 +824,19 @@ function onVehChange(){
 
 function updateInvoiceInfo(v){
   const info = VEHICLE_INFO[v] || {};
-  // 更新 header 公司名稱
+  // 更新 header 公司名稱（司機車和休假不顯示公司）
   const hc = document.getElementById('header-company');
-  if (hc) hc.textContent = info.company || '易增股份有限公司';
+  if (hc){
+    if (v === '司機車' || v === '休假'){
+      hc.textContent = '';
+    } else {
+      hc.textContent = info.company || '';
+    }
+  }
   // 更新發票資訊藍色方塊
-  const row  = document.getElementById('invoice-hint-row');
-  const box  = document.getElementById('invoice-info');
-  if (info.invoiceCo){
+  const row = document.getElementById('invoice-hint-row');
+  const box = document.getElementById('invoice-info');
+  if (info.invoiceCo && v !== '司機車' && v !== '休假'){
     document.getElementById('invoice-co').textContent  = info.invoiceCo;
     document.getElementById('invoice-tax').textContent = info.taxId;
     if (row) row.classList.remove('hidden');
