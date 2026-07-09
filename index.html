@@ -480,13 +480,17 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
             <button class="btn btn-ghost" onclick="clearAllConfirm()" id="clear-btn" style="font-size:12px;padding:6px 11px;">🗑 清除</button>
           </div>
         </div>
-        <!-- 車牌篩選 + 年月篩選 -->
-        <div style="display:flex;gap:6px;flex-wrap:wrap;padding-bottom:4px;align-items:center" id="vtabs">
-          <button class="vtab" data-v="__ALL__" style="font-size:11px;padding:4px 10px">全部車輛</button>
-          <button class="vtab" data-v="CBX-8595" style="font-size:11px;padding:4px 10px">CBX-8595</button>
-          <button class="vtab" data-v="BQD-8595" style="font-size:11px;padding:4px 10px">BQD-8595</button>
-          <button class="vtab" data-v="BFW-8595" style="font-size:11px;padding:4px 10px">BFW-8595</button>
-          <button class="vtab" data-v="司機車" style="font-size:11px;padding:4px 10px">司機車</button>
+        <!-- 車輛篩選下拉 + 年月篩選 -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;padding-bottom:4px;align-items:center" id="vtabs">
+          <select id="filter-veh" onchange="setVeh(this.value)"
+            style="padding:5px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:13px;font-weight:700;color:var(--navy);background:#eff6ff;cursor:pointer;font-family:var(--mono)">
+            <option value="__ALL__">全部車輛</option>
+            <option value="CBX-8595">CBX-8595</option>
+            <option value="BQD-8595">BQD-8595</option>
+            <option value="BFW-8595">BFW-8595</option>
+            <option value="司機車">司機車</option>
+            <option value="休假">休假</option>
+          </select>
           <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
             <select id="filter-year" onchange="render()"
               style="padding:4px 8px;border:1px solid var(--gray-200);border-radius:6px;font-size:12px;color:var(--gray-700);background:#fff;cursor:pointer">
@@ -786,8 +790,10 @@ function fmtD(d){ return String(d).replace(/-/g,'/'); }
    ══════════════════════════════════════════ */
 function setVeh(v){
   curVeh = v; lsS(LS.VEH, v);
-  document.querySelectorAll('.vtab').forEach(b => b.classList.toggle('active', b.dataset.v===v));
-  // 表單永遠顯示，車牌篩選只影響紀錄表
+  // 同步下拉選單
+  const sel = document.getElementById('filter-veh');
+  if (sel) sel.value = v;
+  // 管理者標記
   const mgr = document.getElementById('mgr-badge');
   if (mgr) mgr.classList.toggle('hidden', v!=='__ALL__');
   render();
