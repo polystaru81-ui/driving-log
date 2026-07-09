@@ -264,11 +264,12 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
           <select id="f-vehicle" class="inp">
             <option>CBX-8595</option><option>BQD-8595</option>
             <option>BFW-8595</option><option>司機車</option>
+            <option>休假</option>
           </select>
         </div>
       </div>
 
-      <div class="fgroup">
+      <div class="fgroup" id="route-section">
         <label class="flabel">行程 <span class="hint">（輸入關鍵字搜尋・含「易」自動同步行事曆）</span></label>
         <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">
           <!-- 搜尋輸入框 -->
@@ -338,7 +339,7 @@ tfoot td { padding: 9px 11px; font-weight: 700; color: var(--navy); font-family:
       </div>
 
       <!-- 時間（4欄，每欄25%寬）-->
-      <div class="frow c4">
+      <div class="frow c4" id="time-section">
         <div class="fgroup">
           <label class="flabel">接送時間</label>
           <div style="display:flex;gap:6px;align-items:center">
@@ -794,10 +795,23 @@ function setVeh(v){
 
 function onVehChange(){
   const v = document.getElementById('f-vehicle').value;
-  showKm(v!=='司機車');
-  if (v!=='司機車'){
-    document.getElementById('f-km-s').value = lastKm[v] ?? '';
-    document.getElementById('f-km-e').value = ''; calcKm();
+  const isHoliday = v === '休假';
+
+  // 休假：隱藏行程、時間、里程欄位
+  const routeSec  = document.getElementById('route-section');
+  const timeSec   = document.getElementById('time-section');
+  const kmSec     = document.getElementById('km-section');
+  if (routeSec) routeSec.classList.toggle('hidden', isHoliday);
+  if (timeSec)  timeSec.classList.toggle('hidden',  isHoliday);
+
+  if (!isHoliday){
+    showKm(v !== '司機車');
+    if (v !== '司機車'){
+      document.getElementById('f-km-s').value = lastKm[v] ?? '';
+      document.getElementById('f-km-e').value = ''; calcKm();
+    }
+  } else {
+    if (kmSec) kmSec.classList.add('hidden');
   }
   updateInvoiceInfo(v);
 }
@@ -821,6 +835,14 @@ function updateInvoiceInfo(v){
   }
 }
 function showKm(show){ document.getElementById('km-section').classList.toggle('hidden', !show); }
+
+/* 休假模式：隱藏時間與里程欄位 */
+function showTimeKm(show){
+  const ts = document.getElementById('time-section');
+  const ks = document.getElementById('km-section');
+  if (ts) ts.classList.toggle('hidden', !show);
+  if (ks && show) ks.classList.remove('hidden'); // km 由 showKm 另外控制
+}
 
 /* Km */
 function calcKm(){
@@ -1056,23 +1078,27 @@ async function addRecord(){
   const date = document.getElementById('f-date').value;
   if (!date){ showMsg('請填入日期'); return; }
 
-  const drv = v==='司機車';
-  const kS  = drv ? '' : document.getElementById('f-km-s').value;
-  const kE  = drv ? '' : document.getElementById('f-km-e').value;
+  const isHoliday = v === '休假';
+  const drv = v === '司機車';
 
-  if (!drv){
+  const kS  = (drv||isHoliday) ? '' : document.getElementById('f-km-s').value;
+  const kE  = (drv||isHoliday) ? '' : document.getElementById('f-km-e').value;
+
+  if (!drv && !isHoliday){
     if (kS===''||kE===''){ showMsg('請填入起始與結束里程'); return; }
-    if (+kE < +kS){ showMsg('結束里程不可小於起始里程，總里程不可為負數'); return; }
+    if (+kE < +kS){ showMsg('結束里程不可小於起始里程'); return; }
   }
 
-  const tot   = (!drv && kS!=='' && kE!=='') ? Math.max(0,+kE-+kS) : '';
-  const route = document.getElementById('f-route').value.trim();
-  const tp    = parseTime(document.getElementById('f-tp').value);
-  const ta    = parseTime(document.getElementById('f-ta').value);
+  const tot   = (!drv && !isHoliday && kS!=='' && kE!=='') ? Math.max(0,+kE-+kS) : '';
+  const route = isHoliday ? '休假' : document.getElementById('f-route').value.trim();
+  const tp    = isHoliday ? '' : parseTime(document.getElementById('f-tp').value);
+  const ta    = isHoliday ? '' : parseTime(document.getElementById('f-ta').value);
 
-  if (!route){ showMsg('請填入行程'); return; }
-  if (!tp){    showMsg('請填入接送時間（格式 HH:MM）'); return; }
-  if (!ta){    showMsg('請填入下班時間（格式 HH:MM）'); return; }
+  if (!isHoliday){
+    if (!route){ showMsg('請填入行程'); return; }
+    if (!tp){    showMsg('請填入接送時間'); return; }
+    if (!ta){    showMsg('請填入下班時間'); return; }
+  }
 
   const isEdit = !!editingId;
   const origRec = isEdit ? records.find(r => String(r.id) === String(editingId)) : null;
@@ -1212,7 +1238,10 @@ function clearForm(){
   selectedRoute = '';
   const delBtn = document.getElementById('btn-del-route');
   if (delBtn) delBtn.style.display = 'none';
-  cancelNewRoute();
+  showTimeKm(true);
+  // 恢復行程欄位（清除休假模式）
+  const routeSec = document.getElementById('route-section');
+  if (routeSec) routeSec.classList.remove('hidden');
   document.getElementById('f-ot').value='';
   cbState={nl:false,nd:false,gc:false};
   ['nl','nd','gc'].forEach(id=>{
