@@ -935,12 +935,13 @@ document.addEventListener('keydown', e => {
 
 function onRouteSearch(){
   const kw = document.getElementById('f-route-search').value.trim();
+  // 即時同步到 f-route（讓新增紀錄能讀到輸入值）
+  document.getElementById('f-route').value = kw;
   renderRouteDropdown(kw);
   document.getElementById('route-dropdown').style.display='block';
   if(kw !== selectedRoute){
     selectedRoute='';
     document.getElementById('f-route-sel').value='';
-    document.getElementById('f-route').value='';
     document.getElementById('btn-del-route').style.display='none';
   }
 }
@@ -1102,7 +1103,15 @@ async function addRecord(){
   }
 
   const tot   = (!drv && !isHoliday && kS!=='' && kE!=='') ? Math.max(0,+kE-+kS) : '';
-  const route = isHoliday ? '休假' : document.getElementById('f-route').value.trim();
+  const route = isHoliday ? '休假' : (
+    document.getElementById('f-route').value.trim() ||
+    document.getElementById('f-route-search').value.trim()
+  );
+
+  // 同步確保 f-route 有值
+  if (!isHoliday && route){
+    document.getElementById('f-route').value = route;
+  }
   const tp    = isHoliday ? '' : parseTime(document.getElementById('f-tp').value);
   const ta    = isHoliday ? '' : parseTime(document.getElementById('f-ta').value);
 
